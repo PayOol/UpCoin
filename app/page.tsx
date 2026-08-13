@@ -4,7 +4,6 @@ import Image from "next/image";
 import {
   ArrowLeft,
   ArrowRight,
-  Calculator,
   Check,
   CheckCircle2,
   Coins,
@@ -16,57 +15,73 @@ import {
   Info,
   LockKeyhole,
   Menu,
-  Minus,
   Moon,
-  Pencil,
-  Plus,
   ReceiptText,
-  RefreshCw,
   ShieldCheck,
   ShoppingBag,
   Sparkles,
   Sun,
-  TrendingUp,
   X,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { SoleasPayCheckoutV3 } from "@/app/components/payments/SoleasPayCheckoutV3";
+import { packs, type Pack } from "@/app/lib/catalog";
 
 type Language = "fr" | "en";
 type Theme = "light" | "dark";
-type Badge = "popular" | "creator";
 
-type Pack = {
-  id: string;
-  coins: number;
-  bonus?: number;
-  price: number;
-  badge?: Badge;
+const PREFERENCE_CHANGE_EVENT = "upcoin-preference-change";
+
+function subscribeToPreferences(onStoreChange: () => void): () => void {
+  const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(PREFERENCE_CHANGE_EVENT, onStoreChange);
+  colorScheme.addEventListener("change", onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(PREFERENCE_CHANGE_EVENT, onStoreChange);
+    colorScheme.removeEventListener("change", onStoreChange);
+  };
+}
+
+function getLanguagePreference(): Language {
+  const savedLanguage = window.localStorage.getItem("upcoin-language");
+  if (savedLanguage === "fr" || savedLanguage === "en") return savedLanguage;
+  return window.navigator.language.toLowerCase().startsWith("fr") ? "fr" : "en";
+}
+
+function getThemePreference(): Theme {
+  const savedTheme = window.localStorage.getItem("upcoin-theme");
+  if (savedTheme === "light" || savedTheme === "dark") return savedTheme;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function savePreference(key: "upcoin-language" | "upcoin-theme", value: string): void {
+  window.localStorage.setItem(key, value);
+  window.dispatchEvent(new Event(PREFERENCE_CHANGE_EVENT));
+}
+
+type CountryLookupResponse = {
+  country_code?: string;
 };
+
+function isCountryLookupResponse(value: unknown): value is CountryLookupResponse {
+  return typeof value === "object" && value !== null &&
+    (!("country_code" in value) || typeof value.country_code === "string");
+}
 
 type Order = {
   id: string;
+  transactionReference: string;
   username: string;
   coins: number;
   price: number;
-  payment: string;
+  payment: "SoleasPay";
+  status: "SUCCESS";
   createdAt: string;
 };
-
-const packs: Pack[] = [
-  { id: "mini", coins: 100, price: 1124 },
-  { id: "starter", coins: 350, price: 3900 },
-  { id: "boost", coins: 700, bonus: 70, price: 7900, badge: "popular" },
-  { id: "live", coins: 1400, bonus: 140, price: 15700 },
-  { id: "creator", coins: 3500, bonus: 350, price: 39300, badge: "creator" },
-  { id: "max", coins: 7000, bonus: 700, price: 78700 },
-];
-
-const paymentMethods = [
-  { id: "momo", name: "MTN MoMo", short: "MoMo" },
-  { id: "orange", name: "Orange Money", short: "OM" },
-  { id: "wave", name: "Wave", short: "W" },
-];
 
 const copy = {
   fr: {
@@ -105,17 +120,13 @@ const copy = {
     minimumCoins: "Minimum 70 pièces",
     unitPrice: "Prix unitaire : 11.24 FCFA / pièce",
     totalToPay: "Total à payer :",
-    safetyTitle: "Vos données sont protégées.",
-    safetyText: "Votre mot de passe est chiffré de bout en bout et utilisé uniquement pour effectuer la recharge sur votre compte TikTok.",
     orderHistory: "Historique des commandes",
-    refresh: "Actualiser",
     payment: "Paiement",
     date: "Date",
-    demoValidated: "Démo validée",
+    paid: "Transaction soumise",
     noOrders: "Aucune commande pour le moment",
-    nextSimulation: "Votre prochaine simulation apparaîtra ici.",
-    progress: "Étape {current} sur 2",
-    stepOne: "Étape 1 sur 2",
+    nextOrder: "Vos transactions SoleasPay réussies apparaîtront ici.",
+    progress: "Étape {current} sur 3",
     rechargeInfo: "Informations de recharge",
     tiktokUsername: "Nom d’utilisateur TikTok",
     required: "obligatoire",
@@ -123,26 +134,15 @@ const copy = {
     whatsapp: "Numéro WhatsApp",
     whatsappHint: "Pour vous contacter au sujet de la commande",
     whatsappPlaceholder: "6 00 00 00 00",
-    credentialNoticeTitle: "Connexion sécurisée",
-    credentialNotice: "Votre mot de passe est chiffré de bout en bout et sécurisé — il n'est jamais conservé sur nos serveurs.",
+    emailAddress: "Adresse e-mail",
+    emailPlaceholder: "client@exemple.com",
     continue: "Continuer",
     back: "Retour",
-    stepTwo: "Étape 2 sur 2",
     confirmOrder: "Confirmer la commande",
     orderAccount: "Compte",
     recharge: "Recharge",
     total: "Total",
-    paymentMethod: "Moyen de paiement",
-    confirmAccuracy: "Je confirme que l’identifiant TikTok et le numéro WhatsApp sont corrects.",
-    simulatePayment: "Simuler le paiement",
-    noCharge: "Aucun prélèvement ne sera effectué.",
-    orderRecorded: "Commande enregistrée",
-    simulationSuccess: "Simulation réussie",
-    successPrefix: "La commande de",
-    successFor: "pour",
-    successSuffix: "figure maintenant dans votre historique local.",
-    reference: "Référence",
-    finish: "Terminer",
+    paymentMethod: "Paiement sécurisé",
   },
   en: {
     mainMenu: "Main menu",
@@ -180,17 +180,13 @@ const copy = {
     minimumCoins: "Minimum 70 coins",
     unitPrice: "Unit price: 11.24 FCFA / coin",
     totalToPay: "Total to pay:",
-    safetyTitle: "Your data is protected.",
-    safetyText: "Your password is end-to-end encrypted and used only to process the recharge on your TikTok account.",
     orderHistory: "Order history",
-    refresh: "Refresh",
     payment: "Payment",
     date: "Date",
-    demoValidated: "Demo validated",
+    paid: "Transaction submitted",
     noOrders: "No orders yet",
-    nextSimulation: "Your next simulation will appear here.",
-    progress: "Step {current} of 2",
-    stepOne: "Step 1 of 2",
+    nextOrder: "Your successful SoleasPay transactions will appear here.",
+    progress: "Step {current} of 3",
     rechargeInfo: "Recharge information",
     tiktokUsername: "TikTok username",
     required: "required",
@@ -198,26 +194,15 @@ const copy = {
     whatsapp: "WhatsApp number",
     whatsappHint: "So we can contact you about the order",
     whatsappPlaceholder: "6 00 00 00 00",
-    credentialNoticeTitle: "Secure sign-in",
-    credentialNotice: "Your password is end-to-end encrypted and secure — it is never stored on our servers.",
+    emailAddress: "Email address",
+    emailPlaceholder: "customer@example.com",
     continue: "Continue",
     back: "Back",
-    stepTwo: "Step 2 of 2",
     confirmOrder: "Confirm order",
     orderAccount: "Account",
     recharge: "Recharge",
     total: "Total",
-    paymentMethod: "Payment method",
-    confirmAccuracy: "I confirm that the TikTok username and WhatsApp number are correct.",
-    simulatePayment: "Simulate payment",
-    noCharge: "No payment will be charged.",
-    orderRecorded: "Order recorded",
-    simulationSuccess: "Simulation successful",
-    successPrefix: "The order for",
-    successFor: "for",
-    successSuffix: "now appears in your local history.",
-    reference: "Reference",
-    finish: "Finish",
+    paymentMethod: "Secure payment",
   },
 } as const;
 
@@ -241,71 +226,51 @@ const formatPrice = (value: number, language: Language) =>
   formatNumber(value, language) + " FCFA";
 
 export default function Home() {
-  const [language, setLanguage] = useState<Language>("fr");
-  const [languageReady, setLanguageReady] = useState(false);
-  const [theme, setTheme] = useState<Theme>("light");
+  const language = useSyncExternalStore(
+    subscribeToPreferences,
+    getLanguagePreference,
+    (): Language => "fr",
+  );
+  const theme = useSyncExternalStore(
+    subscribeToPreferences,
+    getThemePreference,
+    (): Theme => "light",
+  );
   const [selectedPack, setSelectedPack] = useState<Pack>(packs[2]);
   const [customCoins, setCustomCoins] = useState(0);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [instructionsAccepted, setInstructionsAccepted] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [whatsapp, setWhatsapp] = useState("");
+  const [email, setEmail] = useState("");
   const [dialCode, setDialCode] = useState("+237");
-  const [payment, setPayment] = useState(paymentMethods[0].name);
-  const [accepted, setAccepted] = useState(false);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [paymentOrderId, setPaymentOrderId] = useState("");
+  const [orders] = useState<Order[]>([]);
   const [sideNavOpen, setSideNavOpen] = useState(false);
   const t = copy[language];
   const purchasedCoins = orders.reduce((total, order) => total + order.coins, 0);
 
   useEffect(() => {
-    const savedLanguage = window.localStorage.getItem("upcoin-language");
-    const savedTheme = window.localStorage.getItem("upcoin-theme");
-
-    if (savedLanguage === "fr" || savedLanguage === "en") {
-      setLanguage(savedLanguage);
-    } else {
-      const browserLanguage = window.navigator.language.toLowerCase();
-      setLanguage(browserLanguage.startsWith("fr") ? "fr" : "en");
-    }
-    setLanguageReady(true);
-
-    if (savedTheme === "light" || savedTheme === "dark") {
-      setTheme(savedTheme);
-    } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      setTheme("dark");
-    }
-
-    const storedOrders = window.localStorage.getItem("upcoin-demo-orders");
-    if (!storedOrders) return;
-
-    try {
-      setOrders(JSON.parse(storedOrders));
-    } catch {
-      window.localStorage.removeItem("upcoin-demo-orders");
-    }
+    window.localStorage.removeItem("upcoin-demo-orders");
   }, []);
 
   useEffect(() => {
     document.documentElement.lang = language;
-    if (!languageReady) return;
-    window.localStorage.setItem("upcoin-language", language);
-  }, [language, languageReady]);
+  }, [language]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
-    window.localStorage.setItem("upcoin-theme", theme);
   }, [theme]);
 
   useEffect(() => {
     fetch("https://ipapi.co/json/")
-      .then((response) => response.json())
+      .then((response) => response.json() as Promise<unknown>)
       .then((data) => {
-        if (data?.country_code && dialCodes[data.country_code]) {
+        if (isCountryLookupResponse(data) && data.country_code && dialCodes[data.country_code]) {
           setDialCode(dialCodes[data.country_code]);
         }
       })
@@ -329,7 +294,8 @@ export default function Home() {
     setCustomCoins(0);
     setStep(1);
     setInstructionsAccepted(false);
-    setAccepted(false);
+    setPaymentOrderId("");
+    setEmail("");
     setCheckoutOpen(true);
   };
 
@@ -341,7 +307,7 @@ export default function Home() {
       setSelectedPack({
         id: "custom",
         coins: safeValue,
-        price: safeValue * 11.24,
+        price: Math.round(safeValue * 11.24),
       });
     }
   };
@@ -349,32 +315,22 @@ export default function Home() {
   const openCheckout = () => {
     setStep(1);
     setInstructionsAccepted(false);
-    setAccepted(false);
+    setPaymentOrderId("");
+    setEmail("");
     setCheckoutOpen(true);
   };
 
   const closeCheckout = () => {
     setCheckoutOpen(false);
     setStep(1);
-    setAccepted(false);
+    setPaymentOrderId("");
+    setEmail("");
+    setPassword("");
+    setShowPassword(false);
   };
 
-  const submitOrder = (event: FormEvent) => {
-    event.preventDefault();
-    if (!accepted) return;
-
-    const nextOrder: Order = {
-      id: "UP-" + Date.now().toString().slice(-6),
-      username: username.trim().replace(/^@/, ""),
-      coins: deliveredCoins,
-      price: selectedPack.price,
-      payment,
-      createdAt: new Date().toISOString(),
-    };
-
-    const nextOrders = [nextOrder, ...orders].slice(0, 8);
-    setOrders(nextOrders);
-    window.localStorage.setItem("upcoin-demo-orders", JSON.stringify(nextOrders));
+  const openPaymentStep = () => {
+    setPaymentOrderId(`UP-${crypto.randomUUID()}`);
     setStep(3);
   };
 
@@ -406,7 +362,7 @@ export default function Home() {
           <button
             type="button"
             className="lang-switcher"
-            onClick={() => setLanguage(language === "fr" ? "en" : "fr")}
+            onClick={() => savePreference("upcoin-language", language === "fr" ? "en" : "fr")}
             aria-label={language === "fr" ? t.english : t.french}
             title={language === "fr" ? t.english : t.french}
           >
@@ -418,7 +374,7 @@ export default function Home() {
           <button
             type="button"
             className="theme-toggle"
-            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+            onClick={() => savePreference("upcoin-theme", theme === "light" ? "dark" : "light")}
             aria-label={theme === "light" ? t.enableDark : t.enableLight}
             title={theme === "light" ? t.enableDark : t.enableLight}
             aria-pressed={theme === "dark"}
@@ -444,8 +400,14 @@ export default function Home() {
       </header>
 
       {sideNavOpen && (
-        <div className="sidenav-overlay" onClick={() => setSideNavOpen(false)}>
-          <nav className="sidenav-drawer" onClick={(event) => event.stopPropagation()} aria-label={t.mainMenu}>
+        <div className="sidenav-overlay">
+          <button
+            type="button"
+            className="sidenav-backdrop"
+            onClick={() => setSideNavOpen(false)}
+            aria-label={t.close}
+          />
+          <nav className="sidenav-drawer" aria-label={t.mainMenu}>
             <div className="sidenav-header">
               <span className="sidenav-title">{t.menu}</span>
               <button type="button" onClick={() => setSideNavOpen(false)} aria-label={t.close}>
@@ -582,9 +544,6 @@ export default function Home() {
             <h2>{t.orderHistory}</h2>
             <span>{orders.length}</span>
           </div>
-          <button type="button" onClick={() => setOrders([...orders])}>
-            <RefreshCw size={15} /> {t.refresh}
-          </button>
         </div>
 
         {orders.length > 0 ? (
@@ -594,7 +553,7 @@ export default function Home() {
                 <div className="order-icon"><ReceiptText size={18} /></div>
                 <div className="order-main">
                   <strong>{formatNumber(order.coins, language)} {t.pieces}</strong>
-                  <span>@{order.username} · {order.id}</span>
+                  <span>@{order.username} · {order.transactionReference}</span>
                 </div>
                 <div className="order-method"><span>{t.payment}</span><strong>{order.payment}</strong></div>
                 <div className="order-date">
@@ -602,7 +561,7 @@ export default function Home() {
                   <strong>{new Intl.DateTimeFormat(localeFor(language), { dateStyle: "medium", timeStyle: "short" }).format(new Date(order.createdAt))}</strong>
                 </div>
                 <strong className="order-price">{formatPrice(order.price, language)}</strong>
-                <span className="order-status"><CheckCircle2 size={14} /> {t.demoValidated}</span>
+                <span className="order-status"><CheckCircle2 size={14} /> {t.paid}</span>
               </article>
             ))}
           </div>
@@ -610,7 +569,7 @@ export default function Home() {
           <div className="empty-history">
             <ReceiptText size={28} />
             <strong>{t.noOrders}</strong>
-            <span>{t.nextSimulation}</span>
+            <span>{t.nextOrder}</span>
           </div>
         )}
       </section>
@@ -637,7 +596,7 @@ export default function Home() {
             {step === 1 && (
               <div className="checkout-step step-instructions">
                 <div className="instructions-header">
-                  <span className="modal-kicker">Étape 1 sur 3</span>
+                  <span className="modal-kicker">{t.progress.replace("{current}", "1")}</span>
                   <h2 id="checkout-title">Instructions importantes</h2>
                   <p className="instructions-intro">Veuillez lire attentivement avant de continuer</p>
                 </div>
@@ -647,7 +606,7 @@ export default function Home() {
                     <div className="instruction-card-icon"><ShieldCheck size={20} /></div>
                     <div>
                       <strong>Identifiants TikTok requis</strong>
-                      <p>Veuillez vous assurer que vous disposez de vos identifiants TikTok corrects (nom d'utilisateur et mot de passe) pour recevoir vos pièces.</p>
+                      <p>Veuillez vous assurer que vous disposez de vos identifiants TikTok corrects (nom d&apos;utilisateur et mot de passe) pour recevoir vos pièces.</p>
                     </div>
                   </div>
 
@@ -655,7 +614,7 @@ export default function Home() {
                     <div className="instruction-card-icon"><Info size={20} /></div>
                     <div>
                       <strong>Authentification à deux facteurs (2FA)</strong>
-                      <p>Si vous avez activé l'authentification à deux facteurs sur votre compte TikTok, veuillez la désactiver temporairement le temps de recevoir vos pièces.</p>
+                      <p>Si vous avez activé l&apos;authentification à deux facteurs sur votre compte TikTok, veuillez la désactiver temporairement le temps de recevoir vos pièces.</p>
                     </div>
                   </div>
                 </div>
@@ -692,7 +651,7 @@ export default function Home() {
 
                 <div className="form-header">
                   <div>
-                    <span className="modal-kicker">Étape 2 sur 3</span>
+                    <span className="modal-kicker">{t.progress.replace("{current}", "2")}</span>
                     <h2 id="checkout-title">{t.rechargeInfo}</h2>
                   </div>
                   <div className="form-header-pack">
@@ -706,7 +665,6 @@ export default function Home() {
                     <div className="field">
                       <span>@</span>
                       <input
-                        autoFocus
                         value={username}
                         onChange={(event) => setUsername(event.target.value.replace(/^@/, ""))}
                         placeholder="pseudo ou email"
@@ -751,15 +709,11 @@ export default function Home() {
                   </div>
                 </label>
 
-                <p className="security-inline">
-                  <ShieldCheck size={14} /> Mot de passe chiffré et sécurisé — jamais stocké.
-                </p>
-
                 <button
                   type="button"
                   className="modal-primary"
                   disabled={!canContinue}
-                  onClick={() => setStep(3)}
+                  onClick={openPaymentStep}
                 >
                   {t.continue} <ArrowRight size={18} />
                 </button>
@@ -767,11 +721,11 @@ export default function Home() {
             )}
 
             {step === 3 && (
-              <form className="checkout-step" onSubmit={submitOrder}>
+              <div className="checkout-step">
                 <button type="button" className="back-button" onClick={() => setStep(2)}>
                   <ArrowLeft size={15} /> {t.back}
                 </button>
-                <span className="modal-kicker">Étape 3 sur 3</span>
+                <span className="modal-kicker">{t.progress.replace("{current}", "3")}</span>
                 <h2 id="checkout-title">{t.confirmOrder}</h2>
 
                 <div className="checkout-summary">
@@ -780,50 +734,44 @@ export default function Home() {
                   <div><span>{t.total}</span><strong>{formatPrice(selectedPack.price, language)}</strong></div>
                 </div>
 
-                <fieldset className="payment-options">
-                  <legend>{t.paymentMethod}</legend>
-                  {paymentMethods.map((method) => (
-                    <label key={method.id} className={payment === method.name ? "selected" : ""}>
-                      <input
-                        type="radio"
-                        name="payment"
-                        value={method.name}
-                        checked={payment === method.name}
-                        onChange={() => setPayment(method.name)}
-                      />
-                      <span className={"payment-logo " + method.id}>{method.short}</span>
-                      <strong>{method.name}</strong>
-                      <span className="radio-dot" />
-                    </label>
-                  ))}
-                </fieldset>
-
-                <label className="terms-check">
-                  <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />
-                  <span><Check size={13} /></span>
-                  {t.confirmAccuracy}
+                <label className="field-label checkout-email-field">
+                  <span>{t.emailAddress} <span className="required">*</span></span>
+                  <div className="field">
+                    <span aria-hidden="true">@</span>
+                    <input
+                      form="soleaspay-checkout-v3"
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder={t.emailPlaceholder}
+                      autoComplete="email"
+                      required
+                    />
+                  </div>
                 </label>
 
-                <button className="modal-primary" type="submit" disabled={!accepted}>
-                  {t.simulatePayment} <ArrowRight size={18} />
-                </button>
-                <span className="demo-note">{t.noCharge}</span>
-              </form>
-            )}
+                <div className="payment-provider" aria-label={t.paymentMethod}>
+                  <span className="payment-logo soleaspay" aria-hidden="true">S</span>
+                  <span>
+                    <strong>SoleasPay</strong>
+                    <small>Checkout v3 · XAF</small>
+                  </span>
+                  <ShieldCheck size={18} aria-hidden="true" />
+                </div>
 
-            {step === 4 && (
-              <div className="checkout-success">
-                <div className="success-icon"><Check /></div>
-                <span className="modal-kicker">{t.orderRecorded}</span>
-                <h2 id="checkout-title">{t.simulationSuccess}</h2>
-                <p>
-                  {t.successPrefix} <strong>{formatNumber(deliveredCoins, language)} {t.pieces}</strong> {t.successFor}{" "}
-                  <strong>@{username.replace(/^@/, "")}</strong> {t.successSuffix}
-                </p>
-                <div className="success-reference"><span>{t.reference}</span><strong>{orders[0]?.id}</strong></div>
-                <button type="button" className="modal-primary" onClick={closeCheckout}>
-                  {t.finish} <Check size={18} />
-                </button>
+                {paymentOrderId && (
+                  <SoleasPayCheckoutV3
+                    language={language}
+                    amount={selectedPack.price}
+                    orderId={paymentOrderId}
+                    description={`Recharge UpCoin - ${deliveredCoins} ${t.pieces}`}
+                    username={username}
+                    whatsapp={whatsapp}
+                    password={password}
+                    email={email}
+                    coins={deliveredCoins}
+                  />
+                )}
               </div>
             )}
           </section>
