@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { PwaInstallPrompt } from "@/app/components/pwa/PwaInstallPrompt";
+import { PwaServiceWorker } from "@/app/components/pwa/PwaServiceWorker";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,15 +14,40 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const installPromptCaptureScript = `
+  window.addEventListener("beforeinstallprompt", function (event) {
+    event.preventDefault();
+    window.__upcoinInstallPrompt = event;
+    window.dispatchEvent(new Event("upcoin-install-prompt-ready"));
+  });
+`;
+
 export const metadata: Metadata = {
-  title: "UpCoin — Acheter des pièces TikTok",
+  title: "UpCoin",
   description: "Achetez directement vos pièces TikTok avec Mobile Money sur UpCoin.",
+  applicationName: "UpCoin",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "UpCoin",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+  },
   icons: {
-    icon: "/favicon.png",
-    shortcut: "/favicon.png",
+    icon: [
+      { url: "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/pwa-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/pwa-192x192.png",
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
   openGraph: {
-    title: "UpCoin — Acheter des pièces TikTok",
+    title: "UpCoin",
     description: "Choisissez votre pack et payez avec Mobile Money.",
     type: "website",
     locale: "fr_FR",
@@ -35,7 +62,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "UpCoin — Acheter des pièces TikTok",
+    title: "UpCoin",
     description: "Choisissez votre pack et payez avec Mobile Money.",
     images: ["/og.png"],
   },
@@ -50,7 +77,14 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="fr">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>{children}</body>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: installPromptCaptureScript }} />
+      </head>
+      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        <PwaServiceWorker />
+        <PwaInstallPrompt />
+        {children}
+      </body>
     </html>
   );
 }
