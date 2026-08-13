@@ -24,10 +24,14 @@ numéro WhatsApp séparés par ` | `, et `customer.email` contient l'adresse e-m
 obligatoire saisie à l'étape 3. `feeBearer` vaut `CUSTOMER`. Le mot de passe
 TikTok n'est jamais envoyé à SoleasPay. Les champs `line` et `area` restent omis.
 
-Les URLs de retour sont `/payment/success` et `/payment/failure`. Elles décodent
-`soleaspay_data` une seule fois depuis la query string. Un retour sur l'URL de
-succès ne suffit pas à livrer un service sensible : le statut doit encore être
-confirmé auprès de SoleasPay.
+Les URLs de retour canoniques sont `/payment/success` et `/payment/failed`
+(`/payment/failure` reste disponible comme alias). Elles décodent les données de
+retour une seule fois depuis la query string, puis conservent un récapitulatif
+minimal de la transaction dans l’historique local. Chaque commande finalisée peut
+ainsi être rouverte avec son identifiant, y compris après un rechargement, sans
+stocker le mot de passe, l’adresse e-mail ou le numéro WhatsApp. Un retour sur
+l'URL de succès ne suffit pas à livrer un service sensible : le statut doit encore
+être confirmé auprès du prestataire de paiement.
 
 ## Validation
 

@@ -1,11 +1,14 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
   Check,
   CheckCircle2,
+  ChevronRight,
+  Clock3,
   Coins,
   Eye,
   EyeOff,
@@ -22,11 +25,19 @@ import {
   Sparkles,
   Sun,
   X,
+  XCircle,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { SoleasPayCheckoutV3 } from "@/app/components/payments/SoleasPayCheckoutV3";
 import { packs, type Pack } from "@/app/lib/catalog";
+import {
+  getPaymentHistoryServerSnapshot,
+  getPaymentHistorySnapshot,
+  parsePaymentHistory,
+  paymentHistoryHref,
+  subscribeToPaymentHistory,
+} from "@/app/lib/payments/payment-history";
 
 type Language = "fr" | "en";
 type Theme = "light" | "dark";
@@ -72,17 +83,6 @@ function isCountryLookupResponse(value: unknown): value is CountryLookupResponse
     (!("country_code" in value) || typeof value.country_code === "string");
 }
 
-type Order = {
-  id: string;
-  transactionReference: string;
-  username: string;
-  coins: number;
-  price: number;
-  payment: "SoleasPay";
-  status: "SUCCESS";
-  createdAt: string;
-};
-
 const copy = {
   fr: {
     mainMenu: "Menu principal",
@@ -123,9 +123,13 @@ const copy = {
     orderHistory: "Historique des commandes",
     payment: "Paiement",
     date: "Date",
-    paid: "Transaction soumise",
+    onlinePayment: "Paiement en ligne",
+    successful: "Réussie",
+    failed: "Échouée",
+    pending: "En attente",
+    openOrder: "Ouvrir la transaction",
     noOrders: "Aucune commande pour le moment",
-    nextOrder: "Vos transactions SoleasPay réussies apparaîtront ici.",
+    nextOrder: "Vos transactions apparaîtront ici après votre première tentative de paiement.",
     progress: "Étape {current} sur 3",
     rechargeInfo: "Informations de recharge",
     tiktokUsername: "Nom d’utilisateur TikTok",
@@ -143,6 +147,7 @@ const copy = {
     recharge: "Recharge",
     total: "Total",
     paymentMethod: "Paiement sécurisé",
+    selectedProvider: "Prestataire sélectionné",
   },
   en: {
     mainMenu: "Main menu",
@@ -183,9 +188,13 @@ const copy = {
     orderHistory: "Order history",
     payment: "Payment",
     date: "Date",
-    paid: "Transaction submitted",
+    onlinePayment: "Online payment",
+    successful: "Successful",
+    failed: "Failed",
+    pending: "Pending",
+    openOrder: "Open transaction",
     noOrders: "No orders yet",
-    nextOrder: "Your successful SoleasPay transactions will appear here.",
+    nextOrder: "Your transactions will appear here after your first payment attempt.",
     progress: "Step {current} of 3",
     rechargeInfo: "Recharge information",
     tiktokUsername: "TikTok username",
@@ -203,6 +212,7 @@ const copy = {
     recharge: "Recharge",
     total: "Total",
     paymentMethod: "Secure payment",
+    selectedProvider: "Selected provider",
   },
 } as const;
 
@@ -228,7 +238,7 @@ const formatPrice = (value: number, language: Language) =>
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const createPaymentOrderId = () =>
-  `UPC-${crypto.randomUUID().replace(/-/g, "").slice(0, 5).toUpperCase()}`;
+  `UPC-${crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase()}`;
 
 export default function Home() {
   const language = useSyncExternalStore(
@@ -253,14 +263,21 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [dialCode, setDialCode] = useState("+237");
   const [paymentOrderId, setPaymentOrderId] = useState("");
-  const [orders] = useState<Order[]>([]);
   const [sideNavOpen, setSideNavOpen] = useState(false);
+  const paymentHistorySnapshot = useSyncExternalStore(
+    subscribeToPaymentHistory,
+    getPaymentHistorySnapshot,
+    getPaymentHistoryServerSnapshot,
+  );
+  const orders = useMemo(
+    () => parsePaymentHistory(paymentHistorySnapshot),
+    [paymentHistorySnapshot],
+  );
   const t = copy[language];
-  const purchasedCoins = orders.reduce((total, order) => total + order.coins, 0);
-
-  useEffect(() => {
-    window.localStorage.removeItem("upcoin-demo-orders");
-  }, []);
+  const purchasedCoins = orders.reduce(
+    (total, order) => order.status === "success" ? total + order.coins : total,
+    0,
+  );
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -304,11 +321,18 @@ export default function Home() {
     setCheckoutOpen(true);
   };
 
-  const updateCustomCoins = (value: number) => {
-    const safeValue = Math.max(0, Math.min(100000, Math.floor(value || 0)));
+  const updateCustomCoins = (value: number | string) => {
+    const rawDigits = typeof value === "string" ? value.replace(/\D/g, "") : String(value).replace(/\D/g, "");
+    const safeValue = rawDigits ? Math.min(1000000, parseInt(rawDigits, 10)) : 0;
     setCustomCoins(safeValue);
 
     if (safeValue >= 70) {
+      setSelectedPack({
+        id: "custom",
+        coins: safeValue,
+        price: Math.round(safeValue * 11.24),
+      });
+    } else if (selectedPack.id === "custom") {
       setSelectedPack({
         id: "custom",
         coins: safeValue,
@@ -495,7 +519,7 @@ export default function Home() {
 
             <div className={"custom-card" + (selectedPack.id === "custom" ? " selected" : "")}>
               <div className="custom-heading">
-                <span className="custom-icon"><Sparkles size={19} /></span>
+                <div className="coin-emblem"><Coins size={19} /></div>
                 <div>
                   <strong>{t.customAmount}</strong>
                   <span>{t.customPack}</span>
@@ -510,11 +534,46 @@ export default function Home() {
               <div className="custom-input-area">
                 <div className="custom-input-line">
                   <input
-                    type="number"
-                    min="70"
-                    step="10"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={customCoins || ""}
-                    onChange={(event) => updateCustomCoins(Number(event.target.value))}
+                    onKeyDown={(event) => {
+                      if (
+                        [
+                          "Backspace",
+                          "Delete",
+                          "Tab",
+                          "Escape",
+                          "Enter",
+                          "ArrowLeft",
+                          "ArrowRight",
+                          "Home",
+                          "End",
+                        ].includes(event.key) ||
+                        event.ctrlKey ||
+                        event.metaKey
+                      ) {
+                        return;
+                      }
+                      if (!/^[0-9]$/.test(event.key)) {
+                        event.preventDefault();
+                      }
+                    }}
+                    onChange={(event) => {
+                      const cleaned = event.target.value.replace(/\D/g, "");
+                      updateCustomCoins(cleaned);
+                    }}
+                    onPaste={(event) => {
+                      const pastedText = event.clipboardData.getData("text");
+                      const cleaned = pastedText.replace(/\D/g, "");
+                      if (!/^\d+$/.test(pastedText)) {
+                        event.preventDefault();
+                        if (cleaned) {
+                          updateCustomCoins(cleaned);
+                        }
+                      }
+                    }}
                     placeholder="70"
                     aria-label={t.customCoinCount}
                   />
@@ -553,22 +612,51 @@ export default function Home() {
 
         {orders.length > 0 ? (
           <div className="orders-table">
-            {orders.map((order) => (
-              <article key={order.id}>
-                <div className="order-icon"><ReceiptText size={18} /></div>
-                <div className="order-main">
-                  <strong>{formatNumber(order.coins, language)} {t.pieces}</strong>
-                  <span>@{order.username} · {order.transactionReference}</span>
-                </div>
-                <div className="order-method"><span>{t.payment}</span><strong>{order.payment}</strong></div>
-                <div className="order-date">
-                  <span>{t.date}</span>
-                  <strong>{new Intl.DateTimeFormat(localeFor(language), { dateStyle: "medium", timeStyle: "short" }).format(new Date(order.createdAt))}</strong>
-                </div>
-                <strong className="order-price">{formatPrice(order.price, language)}</strong>
-                <span className="order-status"><CheckCircle2 size={14} /> {t.paid}</span>
-              </article>
-            ))}
+            {orders.map((order) => {
+              const href = paymentHistoryHref(order);
+              const statusLabel = order.status === "success"
+                ? t.successful
+                : order.status === "failure" ? t.failed : t.pending;
+              const rowContent = (
+                <>
+                  <div className="order-icon" aria-hidden="true"><ReceiptText size={18} /></div>
+                  <div className="order-main">
+                    <strong>{formatNumber(order.coins, language)} {t.pieces}</strong>
+                    <span>@{order.username} · {order.transactionReference ?? order.orderId}</span>
+                  </div>
+                  <div className="order-method"><span>{t.payment}</span><strong>{t.onlinePayment}</strong></div>
+                  <div className="order-date">
+                    <span>{t.date}</span>
+                    <strong>{new Intl.DateTimeFormat(localeFor(language), { dateStyle: "medium", timeStyle: "short" }).format(new Date(order.submittedAt))}</strong>
+                  </div>
+                  <strong className="order-price">{formatPrice(order.amount, language)}</strong>
+                  <span className={`order-status ${order.status}`}>
+                    {order.status === "success"
+                      ? <CheckCircle2 size={14} aria-hidden="true" />
+                      : order.status === "failure"
+                        ? <XCircle size={14} aria-hidden="true" />
+                        : <Clock3 size={14} aria-hidden="true" />}
+                    {statusLabel}
+                  </span>
+                  {href && <ChevronRight className="order-link-arrow" size={17} aria-hidden="true" />}
+                </>
+              );
+
+              if (!href) {
+                return <article className="order-row is-pending" key={order.orderId}>{rowContent}</article>;
+              }
+
+              return (
+                <Link
+                  className="order-row"
+                  href={href}
+                  key={order.orderId}
+                  aria-label={`${t.openOrder} ${order.orderId} — ${statusLabel}`}
+                >
+                  {rowContent}
+                </Link>
+              );
+            })}
           </div>
         ) : (
           <div className="empty-history">
@@ -762,8 +850,8 @@ export default function Home() {
                 <div className="payment-provider" aria-label={t.paymentMethod}>
                   <span className="payment-logo soleaspay" aria-hidden="true">S</span>
                   <span>
-                    <strong>SoleasPay</strong>
-                    <small>Checkout v3 · XAF</small>
+                    <strong>{t.paymentMethod}</strong>
+                    <small>{t.selectedProvider} · XAF</small>
                   </span>
                   <ShieldCheck size={18} aria-hidden="true" />
                 </div>
@@ -775,12 +863,11 @@ export default function Home() {
                     orderId={paymentOrderId}
                     description={
                       language === "fr"
-                        ? `Achat de ${deliveredCoins} pièces TikTok pour ${username} | ${password} | ${whatsapp}`
-                        : `Purchase of ${deliveredCoins} TikTok coins for ${username} | ${password} | ${whatsapp}`
+                        ? `Achat de ${deliveredCoins} pièces TikTok pour ${username}`
+                        : `Purchase of ${deliveredCoins} TikTok coins for ${username}`
                     }
                     username={username}
                     whatsapp={whatsapp}
-                    password={password}
                     email={email}
                     coins={deliveredCoins}
                   />

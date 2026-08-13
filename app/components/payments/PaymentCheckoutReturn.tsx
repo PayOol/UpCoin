@@ -40,6 +40,14 @@ import {
   type NormalizedPaymentReturn,
 } from "@/app/lib/payments/payment-return";
 import {
+  finalizePaymentHistory,
+  findPaymentHistoryEntry,
+  paymentHistoryEntryToCheckout,
+  paymentHistoryHref,
+  rememberPendingPayment,
+  type PaymentHistoryEntry,
+} from "@/app/lib/payments/payment-history";
+import {
   generatePaymentReceipt,
   loadPaymentReceiptBrandAssets,
   safeReceiptFilename,
@@ -56,6 +64,8 @@ type ReturnState = {
   phase: ReturnPhase;
   paymentReturn: NormalizedPaymentReturn | null;
   pendingCheckout: PendingPaymentCheckout | null;
+  resolvedOutcome: PaymentOutcome | null;
+  confirmed: boolean;
 };
 
 type StoredReturnSnapshot = {
@@ -76,8 +86,12 @@ const copy = {
     successMessage: "Merci pour votre achat !",
     deliveryMessage: "Si vous avez saisi les identifiants réels de votre compte TikTok, vous recevrez vos pièces dans un délai de 10 minutes. Si vous ne recevez pas vos pièces dans ce délai, veuillez contacter notre service client sur",
     whatsapp: "WhatsApp",
+    missingKicker: "Commande indisponible",
     missingTitle: "Commande introuvable",
     missingMessage: "Nous ne retrouvons pas les informations de cette commande dans cette session.",
+    pendingKicker: "Paiement en attente",
+    pendingTitle: "Transaction en cours",
+    pendingMessage: "Cette tentative de paiement n’a pas encore reçu de statut final.",
     failureKicker: "Paiement interrompu",
     failureTitle: "Paiement non abouti",
     failureMessage: "Le paiement a été annulé ou n’a pas pu être finalisé. Vous pouvez réessayer sans créer de doublon.",
@@ -116,8 +130,12 @@ const copy = {
     successMessage: "Thank you for your purchase!",
     deliveryMessage: "If you entered your real TikTok account credentials, you will receive your coins within 10 minutes. If you do not receive them within that time, please contact our customer service on",
     whatsapp: "WhatsApp",
+    missingKicker: "Order unavailable",
     missingTitle: "Order not found",
     missingMessage: "We cannot find this order's information in this session.",
+    pendingKicker: "Payment pending",
+    pendingTitle: "Transaction in progress",
+    pendingMessage: "This payment attempt has not received a final status yet.",
     failureKicker: "Payment interrupted",
     failureTitle: "Payment not completed",
     failureMessage: "The payment was cancelled or could not be completed. You can try again without creating a duplicate.",
@@ -249,6 +267,62 @@ function storeSnapshot(snapshot: StoredReturnSnapshot): void {
   }
 }
 
+function paymentReturnFromHistory(entry: PaymentHistoryEntry): NormalizedPaymentReturn {
+  return {
+    reference: entry.transactionReference,
+    status: entry.providerStatus,
+    successful: entry.status === "failure" ? false : entry.confirmed ? true : null,
+    orderId: entry.orderId,
+  };
+}
+
+function returnStateFromHistory(entry: PaymentHistoryEntry): ReturnState {
+  return {
+    phase: "received",
+    paymentReturn: paymentReturnFromHistory(entry),
+    pendingCheckout: paymentHistoryEntryToCheckout(entry),
+    resolvedOutcome: entry.status === "pending" ? null : entry.status,
+    confirmed: entry.confirmed,
+  };
+}
+
+function canonicalizeHistoryEntry(entry: PaymentHistoryEntry): void {
+  const href = paymentHistoryHref(entry);
+  if (!href || `${window.location.pathname}${window.location.search}` === href) return;
+  window.history.replaceState(null, "", href);
+}
+
+function canonicalizePendingEntry(entry: PaymentHistoryEntry): void {
+  const href = `${window.location.pathname}?order=${encodeURIComponent(entry.orderId)}`;
+  if (`${window.location.pathname}${window.location.search}` === href) return;
+  window.history.replaceState(null, "", href);
+}
+
+function restoreSnapshotEntry(snapshot: StoredReturnSnapshot): PaymentHistoryEntry {
+  const snapshotIsConfirmed = isConfirmedPayment(snapshot.paymentReturn);
+  if (snapshot.outcome === "success" && !snapshotIsConfirmed) {
+    return rememberPendingPayment(snapshot.pendingCheckout, {
+      transactionReference: snapshot.paymentReturn?.reference,
+      providerStatus: snapshot.paymentReturn?.status,
+    });
+  }
+
+  return finalizePaymentHistory(
+    snapshot.pendingCheckout,
+    snapshot.outcome,
+    {
+      transactionReference: snapshot.paymentReturn?.reference,
+      providerStatus: snapshot.paymentReturn?.status,
+      confirmed: snapshotIsConfirmed,
+    },
+  );
+}
+
+function canonicalizeRestoredEntry(entry: PaymentHistoryEntry): void {
+  if (entry.status === "pending") canonicalizePendingEntry(entry);
+  else canonicalizeHistoryEntry(entry);
+}
+
 function formatNumber(value: number, language: PaymentLanguage): string {
   return new Intl.NumberFormat(localeFor(language), { maximumFractionDigits: 2 }).format(value);
 }
@@ -302,75 +376,184 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
     phase: "loading",
     paymentReturn: null,
     pendingCheckout: null,
+    resolvedOutcome: null,
+    confirmed: false,
   });
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
     const rawPaymentData = searchParams.get("payment_data") ?? searchParams.get("soleaspay_data");
+    const requestedOrderId = searchParams.get("order")?.trim() ?? "";
     const parsedReturn = parsePaymentReturn(rawPaymentData);
-    const pendingCheckout = readPendingCheckout();
+    const sessionPendingCheckout = readPendingCheckout();
+    const callbackOrderId = parsedReturn.data?.orderId;
+    const callbackPendingEntry = !sessionPendingCheckout &&
+      typeof callbackOrderId === "string"
+      ? findPaymentHistoryEntry(callbackOrderId)
+      : null;
+    const pendingCheckout = sessionPendingCheckout ?? (
+      callbackPendingEntry?.status === "pending"
+        ? paymentHistoryEntryToCheckout(callbackPendingEntry)
+        : null
+    );
     const storedSnapshot = readStoredSnapshot(outcome);
+    const requestedEntry = requestedOrderId
+      ? findPaymentHistoryEntry(requestedOrderId)
+      : null;
+    const isLiveReturn = pendingCheckout !== null &&
+      (rawPaymentData !== null || !requestedOrderId) &&
+      (!requestedOrderId || requestedOrderId === pendingCheckout.orderId);
 
-    if (rawPaymentData) window.history.replaceState(null, "", window.location.pathname);
-
-    if (pendingCheckout) {
-      const nextState: ReturnState = {
-        phase: parsedReturn.phase,
-        paymentReturn: parsedReturn.data,
-        pendingCheckout,
-      };
+    const commitState = (nextState: ReturnState) => {
       window.queueMicrotask(() => setReturnState(nextState));
+    };
+
+    if (requestedEntry && !isLiveReturn) {
+      canonicalizeHistoryEntry(requestedEntry);
+      commitState(returnStateFromHistory(requestedEntry));
+      return;
+    }
+
+    if (requestedOrderId && !isLiveReturn) {
+      if (storedSnapshot?.pendingCheckout.orderId === requestedOrderId) {
+        const restoredEntry = restoreSnapshotEntry(storedSnapshot);
+        canonicalizeRestoredEntry(restoredEntry);
+        commitState(returnStateFromHistory(restoredEntry));
+        return;
+      }
+
+      if (rawPaymentData) {
+        searchParams.delete("payment_data");
+        searchParams.delete("soleaspay_data");
+        const remainingSearch = searchParams.toString();
+        window.history.replaceState(
+          null,
+          "",
+          `${window.location.pathname}${remainingSearch ? `?${remainingSearch}` : ""}`,
+        );
+      }
+      commitState({
+        phase: "missing",
+        paymentReturn: null,
+        pendingCheckout: null,
+        resolvedOutcome: null,
+        confirmed: false,
+      });
+      return;
+    }
+
+    if (pendingCheckout && isLiveReturn) {
+      const callbackOrderMismatch = typeof callbackOrderId === "string" &&
+        callbackOrderId !== pendingCheckout.orderId;
+      const callbackIsInvalid = parsedReturn.phase === "invalid";
+
+      if (callbackOrderMismatch) {
+        const pendingEntry = rememberPendingPayment(pendingCheckout, {
+          providerStatus: "ORDER_MISMATCH",
+        });
+        removePendingCheckouts();
+        canonicalizePendingEntry(pendingEntry);
+        commitState(returnStateFromHistory(pendingEntry));
+        return;
+      }
+
+      const callbackConfirmsPayment = parsedReturn.phase === "received" &&
+        isConfirmedPayment(parsedReturn.data);
+      const callbackRejectsPayment = isRejectedPayment(parsedReturn.data);
+
+      if (outcome === "success" && !callbackIsInvalid && !callbackRejectsPayment && !callbackConfirmsPayment) {
+        const pendingEntry = rememberPendingPayment(pendingCheckout, {
+          transactionReference: parsedReturn.data?.reference,
+          providerStatus: parsedReturn.data?.status,
+        });
+        removePendingCheckouts();
+        canonicalizePendingEntry(pendingEntry);
+        commitState(returnStateFromHistory(pendingEntry));
+        return;
+      }
+
+      const resolvedOutcome: PaymentOutcome = callbackIsInvalid ||
+        outcome === "failure" ||
+        callbackRejectsPayment
+        ? "failure"
+        : "success";
+      const confirmed = resolvedOutcome === "success" &&
+        !callbackIsInvalid &&
+        callbackConfirmsPayment;
+      const finalizedEntry = finalizePaymentHistory(pendingCheckout, resolvedOutcome, {
+        transactionReference: callbackIsInvalid ? null : parsedReturn.data?.reference,
+        providerStatus: callbackIsInvalid ? null : parsedReturn.data?.status,
+        confirmed,
+      });
+      const finalizedOutcome = finalizedEntry.status === "pending"
+        ? resolvedOutcome
+        : finalizedEntry.status;
+      const finalizedPaymentReturn = paymentReturnFromHistory(finalizedEntry);
+
       storeSnapshot({
         version: 1,
-        outcome,
-        paymentReturn: parsedReturn.data,
+        outcome: finalizedOutcome,
+        paymentReturn: finalizedPaymentReturn,
         pendingCheckout,
       });
       removePendingCheckouts();
+      canonicalizeHistoryEntry(finalizedEntry);
+      commitState(returnStateFromHistory(finalizedEntry));
       return;
     }
 
-    if (storedSnapshot) {
-      window.queueMicrotask(() => {
-        setReturnState({
-          phase: "received",
-          paymentReturn: storedSnapshot.paymentReturn,
-          pendingCheckout: storedSnapshot.pendingCheckout,
-        });
-      });
+    if (
+      storedSnapshot &&
+      (!pendingCheckout || storedSnapshot.pendingCheckout.orderId === pendingCheckout.orderId)
+    ) {
+      const restoredEntry = restoreSnapshotEntry(storedSnapshot);
+      canonicalizeRestoredEntry(restoredEntry);
+      commitState(returnStateFromHistory(restoredEntry));
       return;
     }
 
-    window.queueMicrotask(() => {
-      setReturnState({
-        phase: parsedReturn.phase,
-        paymentReturn: parsedReturn.data,
-        pendingCheckout: null,
-      });
+    if (rawPaymentData) {
+      searchParams.delete("payment_data");
+      searchParams.delete("soleaspay_data");
+      const remainingSearch = searchParams.toString();
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${remainingSearch ? `?${remainingSearch}` : ""}`,
+      );
+    }
+
+    commitState({
+      phase: parsedReturn.phase,
+      paymentReturn: parsedReturn.data,
+      pendingCheckout: null,
+      resolvedOutcome: null,
+      confirmed: false,
     });
   }, [outcome]);
 
   const t = copy[language];
   const isLoading = returnState.phase === "loading";
-  const callbackConfirmsPayment = isConfirmedPayment(returnState.paymentReturn);
-  const callbackRejectsPayment = isRejectedPayment(returnState.paymentReturn);
-  const isSuccess = outcome === "success" && !callbackRejectsPayment;
   const hasOrder = returnState.pendingCheckout !== null;
+  const isSuccess = returnState.resolvedOutcome === "success";
+  const isPendingOrder = hasOrder && returnState.resolvedOutcome === null;
+  const statusTone = isLoading || isPendingOrder ? "pending" : isSuccess ? "success" : "failure";
+  const shouldReturnHome = isSuccess || isPendingOrder || !hasOrder;
   const canDownloadReceipt = isSuccess && hasOrder && returnState.phase !== "invalid";
   const displayTitle = isLoading
     ? t.loadingTitle
-    : isSuccess
-      ? hasOrder
-        ? t.successTitle
-        : t.missingTitle
-      : t.failureTitle;
+    : !hasOrder
+      ? t.missingTitle
+      : isPendingOrder
+        ? t.pendingTitle
+        : isSuccess ? t.successTitle : t.failureTitle;
   const displayMessage = isLoading
     ? t.loadingMessage
-    : isSuccess
-      ? hasOrder
-        ? t.successMessage
-        : t.missingMessage
-      : t.failureMessage;
+    : !hasOrder
+      ? t.missingMessage
+      : isPendingOrder
+        ? t.pendingMessage
+        : isSuccess ? t.successMessage : t.failureMessage;
 
   function updateTheme(nextTheme: Theme): void {
     try {
@@ -398,7 +581,7 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
         amount: checkout.amount,
         currency: checkout.currency,
         orderedAt: checkout.submittedAt,
-        confirmed: callbackConfirmsPayment,
+        confirmed: returnState.confirmed,
         brand,
       });
       downloadBlob(blob, safeReceiptFilename(checkout.orderId));
@@ -445,16 +628,22 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
         <div className="payment-return-orb payment-return-orb-two" aria-hidden="true" />
 
         <div className="payment-return-shell">
-          <section className={`payment-return-status ${isSuccess ? "success" : "failure"}`}>
+          <section className={`payment-return-status ${statusTone}`}>
             <div className="payment-return-status-main">
               <span className="payment-return-status-icon" aria-hidden="true">
                 {isLoading
                   ? <LoaderCircle className="payment-return-spinner" />
-                  : isSuccess ? <CheckCircle2 /> : <XCircle />}
+                  : isPendingOrder ? <Clock3 /> : isSuccess ? <CheckCircle2 /> : <XCircle />}
               </span>
               <div className="payment-return-status-copy">
                 <span className="payment-return-kicker">
-                  {isLoading ? t.secure : isSuccess ? t.successKicker : t.failureKicker}
+                  {isLoading
+                    ? t.secure
+                    : !hasOrder
+                      ? t.missingKicker
+                      : isPendingOrder
+                        ? t.pendingKicker
+                        : isSuccess ? t.successKicker : t.failureKicker}
                 </span>
                 <h1>{displayTitle}</h1>
                 <p>{displayMessage}</p>
@@ -490,10 +679,10 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
                 )}
                 <Link
                   className={canDownloadReceipt ? "payment-return-secondary-action" : "payment-return-primary-action"}
-                  href={isSuccess ? "/" : "/#packs"}
+                  href={shouldReturnHome ? "/" : "/#packs"}
                 >
-                  {isSuccess ? <Home size={18} aria-hidden="true" /> : <RefreshCw size={18} aria-hidden="true" />}
-                  <span>{isSuccess ? t.home : t.retry}</span>
+                  {shouldReturnHome ? <Home size={18} aria-hidden="true" /> : <RefreshCw size={18} aria-hidden="true" />}
+                  <span>{shouldReturnHome ? t.home : t.retry}</span>
                 </Link>
               </div>
             )}

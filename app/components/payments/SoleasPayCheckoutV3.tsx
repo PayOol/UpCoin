@@ -6,6 +6,7 @@ import {
   PAYMENT_RETURN_SNAPSHOT_KEY,
   type PendingPaymentCheckout,
 } from "@/app/lib/payments/payment-contract";
+import { rememberPendingPayment } from "@/app/lib/payments/payment-history";
 import {
   type SoleasPayLanguage,
 } from "@/app/lib/payments/soleaspay-contract";
@@ -33,7 +34,6 @@ export function SoleasPayCheckoutV3({
   description,
   username,
   whatsapp,
-  password = "",
   email,
   coins,
 }: SoleasPayCheckoutV3Props) {
@@ -47,8 +47,8 @@ export function SoleasPayCheckoutV3({
   );
 
   const successUrl = origin ? `${origin}/payment/success` : "";
-  const failureUrl = origin ? `${origin}/payment/failure` : "";
-  const customerName = `${username} | ${password} | ${whatsapp}`;
+  const failureUrl = origin ? `${origin}/payment/failed` : "";
+  const customerName = `${username} | ${whatsapp}`;
 
   function rememberPendingCheckout(): void {
     const pendingCheckout: PendingPaymentCheckout = {
@@ -70,6 +70,8 @@ export function SoleasPayCheckoutV3({
     } catch {
       // Storage availability must never prevent the native checkout POST.
     }
+
+    rememberPendingPayment(pendingCheckout);
   }
 
   function submitCheckout(event: FormEvent<HTMLFormElement>): void {
