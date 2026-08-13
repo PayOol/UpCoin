@@ -1,0 +1,36 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "upcoin-sebpay",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-14",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "SEBPAY_API_BASE_URL": "https://newapi.sebpay.bj/api/v1",
+    "ALLOWED_ORIGINS": "http://localhost:3000",
+    "SEBPAY_COUNTRY": "CM",
+    "SEBPAY_CURRENCY": "XAF",
+    "SEBPAY_OPERATOR_FIELD": "code"
+  },
+  "secrets": {
+    "required": ["SEBPAY_PUBLIC_KEY", "SEBPAY_SECRET_KEY"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "upcoin-sebpay",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.1
+    }
+  }
+}

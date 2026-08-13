@@ -53,6 +53,10 @@ import {
   safeReceiptFilename,
 } from "@/app/lib/payments/payment-receipt";
 import { sendOrderEmail } from "@/app/lib/payments/send-order-email";
+import {
+  fetchSebPayPayment,
+  type SebPayPayment,
+} from "@/app/lib/payments/sebpay-contract";
 
 type Theme = "light" | "dark";
 type ReturnPhase = "loading" | "received" | "missing" | "invalid";
@@ -294,7 +298,7 @@ function canonicalizeHistoryEntry(entry: PaymentHistoryEntry): void {
 }
 
 function canonicalizePendingEntry(entry: PaymentHistoryEntry): void {
-  const href = `${window.location.pathname}?order=${encodeURIComponent(entry.orderId)}`;
+  const href = `${window.location.pathname}?provider=${encodeURIComponent(entry.provider)}&order=${encodeURIComponent(entry.orderId)}`;
   if (`${window.location.pathname}${window.location.search}` === href) return;
   window.history.replaceState(null, "", href);
 }
@@ -383,6 +387,114 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get("provider") !== "sebpay") return;
+
+    const requestedOrderId = searchParams.get("order")?.trim() ?? "";
+    const sessionCheckout = readPendingCheckout();
+    const historyEntry = requestedOrderId
+      ? findPaymentHistoryEntry(requestedOrderId)
+      : null;
+    const checkout = sessionCheckout?.provider === "sebpay" &&
+      sessionCheckout.orderId === requestedOrderId
+      ? sessionCheckout
+      : historyEntry?.provider === "sebpay"
+        ? paymentHistoryEntryToCheckout(historyEntry)
+        : null;
+
+    if (!requestedOrderId || !checkout) {
+      window.queueMicrotask(() => setReturnState({
+        phase: "missing",
+        paymentReturn: null,
+        pendingCheckout: null,
+        resolvedOutcome: null,
+        confirmed: false,
+      }));
+      return;
+    }
+
+    let cancelled = false;
+    let pollTimer: number | undefined;
+    let pollCount = 0;
+    const maximumPolls = 30;
+
+    const commitPending = (payment?: SebPayPayment) => {
+      const pendingEntry = rememberPendingPayment(checkout, {
+        transactionReference: payment?.transactionId,
+        providerStatus: payment?.providerStatus ?? payment?.status ?? "pending",
+      });
+      canonicalizePendingEntry(pendingEntry);
+      setReturnState({
+        phase: "received",
+        paymentReturn: {
+          reference: payment?.transactionId ?? null,
+          status: payment?.providerStatus ?? payment?.status ?? "pending",
+          successful: null,
+          orderId: checkout.orderId,
+        },
+        pendingCheckout: checkout,
+        resolvedOutcome: null,
+        confirmed: false,
+      });
+    };
+
+    const reconcile = async (): Promise<void> => {
+      try {
+        const payment = await fetchSebPayPayment(requestedOrderId);
+        if (cancelled) return;
+
+        if (payment.status === "pending") {
+          commitPending(payment);
+          pollCount += 1;
+          if (pollCount < maximumPolls) {
+            pollTimer = window.setTimeout(() => void reconcile(), 4_000);
+          }
+          return;
+        }
+
+        const resolvedOutcome: PaymentOutcome = payment.status === "approved"
+          ? "success"
+          : "failure";
+        const finalizedEntry = finalizePaymentHistory(checkout, resolvedOutcome, {
+          transactionReference: payment.transactionId,
+          providerStatus: payment.providerStatus ?? payment.status,
+          confirmed: payment.status === "approved",
+          authoritative: true,
+        });
+        const paymentReturn = paymentReturnFromHistory(finalizedEntry);
+        storeSnapshot({
+          version: 1,
+          outcome: resolvedOutcome,
+          paymentReturn,
+          pendingCheckout: checkout,
+        });
+        removePendingCheckouts();
+        canonicalizeHistoryEntry(finalizedEntry);
+        setReturnState(returnStateFromHistory(finalizedEntry));
+      } catch {
+        if (cancelled) return;
+        commitPending();
+        pollCount += 1;
+        if (pollCount < maximumPolls) {
+          pollTimer = window.setTimeout(() => void reconcile(), 6_000);
+        }
+      }
+    };
+
+    window.queueMicrotask(() => {
+      if (cancelled) return;
+      commitPending();
+      void reconcile();
+    });
+
+    return () => {
+      cancelled = true;
+      if (pollTimer !== undefined) window.clearTimeout(pollTimer);
+    };
+  }, [outcome]);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get("provider") === "sebpay") return;
     const rawPaymentData = searchParams.get("payment_data") ?? searchParams.get("soleaspay_data");
     const requestedOrderId = searchParams.get("order")?.trim() ?? "";
     const parsedReturn = parsePaymentReturn(rawPaymentData);
@@ -537,6 +649,7 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
     if (
       returnState.phase === "received" &&
       returnState.resolvedOutcome === "success" &&
+      returnState.confirmed &&
       returnState.pendingCheckout
     ) {
       sendOrderEmail(returnState.pendingCheckout);

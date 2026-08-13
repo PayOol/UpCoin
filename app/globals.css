@@ -744,6 +744,35 @@ a { color: inherit; text-decoration: none; }
 .payment-provider > svg { color: #66dff3; }
 .payment-logo { width: 37px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 13px; font-weight: 900; }
 .payment-logo.soleaspay { background: linear-gradient(135deg, #08c8e8, #6354e9 58%, #a941df); color: #fff; box-shadow: 0 7px 16px rgba(84,70,210,.28); }
+.payment-logo.sebpay { background: linear-gradient(135deg, #f58322, #f25b21 60%, #c93d1d); color: #fff; box-shadow: 0 7px 16px rgba(242,91,33,.24); }
+
+.payment-provider-selector { margin-top: 18px; }
+.payment-provider-selector-label { display: block; margin-bottom: 8px; color: var(--checkout-muted-strong); font-size: 9px; font-weight: 750; }
+.payment-provider-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.payment-provider-option {
+  min-width: 0;
+  min-height: 64px;
+  padding: 10px;
+  border: 1px solid var(--checkout-line);
+  border-radius: 12px;
+  background: var(--checkout-surface);
+  color: var(--checkout-text);
+  display: grid;
+  grid-template-columns: 37px minmax(0, 1fr) 15px;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, box-shadow .15s, transform .15s;
+}
+.payment-provider-option:hover { transform: translateY(-1px); border-color: rgba(99,85,221,.4); }
+.payment-provider-option.selected { border-color: #6355dd; background: rgba(99,85,221,.07); box-shadow: 0 0 0 2px rgba(99,85,221,.08); }
+.payment-provider-option > span:nth-child(2) { min-width: 0; display: grid; gap: 3px; }
+.payment-provider-option strong { font-size: 10px; }
+.payment-provider-option small { overflow: hidden; color: var(--checkout-muted); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.payment-provider-radio { width: 14px; height: 14px; border: 1.5px solid var(--checkout-faint); border-radius: 50%; position: relative; }
+.payment-provider-option.selected .payment-provider-radio { border-color: #6355dd; }
+.payment-provider-option.selected .payment-provider-radio::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: #6355dd; }
 
 .soleaspay-checkout-form { margin-top: 18px; }
 .soleaspay-checkout-submit {
@@ -780,6 +809,30 @@ a { color: inherit; text-decoration: none; }
 
 @keyframes soleaspay-checkout-spin {
   to { transform: rotate(360deg); }
+}
+
+.sebpay-checkout-form { margin-top: 16px; display: grid; gap: 13px; }
+.sebpay-country-line { min-height: 34px; padding: 0 11px; border-radius: 9px; background: rgba(242,101,34,.08); color: var(--checkout-muted); display: flex; align-items: center; justify-content: space-between; font-size: 9px; }
+.sebpay-country-line strong { color: #e85e20; font-size: 9px; }
+.sebpay-select-field { padding-right: 10px; }
+.sebpay-select-field select { width: 100%; border: 0; outline: 0; background: transparent; color: var(--checkout-text); font: inherit; cursor: pointer; }
+.sebpay-select-field option { background: var(--checkout-surface); color: var(--checkout-text); }
+.sebpay-field-help { margin-top: -3px; color: var(--checkout-muted); font-size: 8px; }
+.sebpay-otp-block { padding: 11px; border: 1px solid rgba(242,101,34,.25); border-radius: 11px; background: rgba(242,101,34,.07); display: grid; gap: 10px; }
+.sebpay-otp-block > p { margin: 0; color: var(--checkout-muted-strong); font-size: 9px; line-height: 1.5; }
+.sebpay-checkout-error { margin: 0; padding: 9px 11px; border: 1px solid rgba(215,57,67,.22); border-radius: 9px; background: rgba(215,57,67,.08); color: #d73943; font-size: 9px; line-height: 1.45; }
+.sebpay-security-note { margin: 0; color: var(--checkout-muted); display: flex; align-items: center; gap: 6px; font-size: 8px; line-height: 1.4; }
+.sebpay-security-note svg { flex: 0 0 auto; color: #e85e20; }
+.sebpay-checkout-submit { margin-top: 0; background: linear-gradient(115deg, #f58a25, #f26522 55%, #d8441e); box-shadow: 0 12px 26px rgba(242,101,34,.22); }
+.sebpay-checkout-submit:hover:not(:disabled) { box-shadow: 0 15px 30px rgba(242,101,34,.3); }
+.sebpay-checkout-state { min-height: 74px; margin-top: 16px; padding: 14px; border: 1px solid var(--checkout-line); border-radius: 11px; background: var(--checkout-surface); color: var(--checkout-muted); display: flex; align-items: center; justify-content: center; gap: 9px; font-size: 9px; text-align: center; }
+.sebpay-checkout-state.is-error { flex-direction: column; color: #d73943; }
+.sebpay-checkout-state button { padding: 7px 10px; border: 1px solid var(--checkout-line); border-radius: 8px; background: var(--checkout-surface-hover); color: var(--checkout-text); display: inline-flex; align-items: center; gap: 5px; font-size: 8px; font-weight: 750; cursor: pointer; }
+.sebpay-spinner { width: 17px; height: 17px; flex: 0 0 auto; animation: soleaspay-checkout-spin .75s linear infinite; }
+
+@media (max-width: 480px) {
+  .payment-provider-options { grid-template-columns: 1fr; }
+  .payment-provider-option { min-height: 58px; }
 }
 
 .terms-check { margin-top: 15px; color: var(--checkout-muted); display: flex; align-items: flex-start; gap: 8px; font-size: 9px; line-height: 1.45; cursor: pointer; }

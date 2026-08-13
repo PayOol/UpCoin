@@ -58,6 +58,7 @@ export function SoleasPayCheckoutV3({
   function rememberPendingCheckout(): void {
     const pendingCheckout: PendingPaymentCheckout = {
       version: 1,
+      provider: "soleaspay",
       orderId,
       username: username.trim().replace(/^@/, ""),
       coins,

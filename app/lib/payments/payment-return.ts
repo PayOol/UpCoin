@@ -1,4 +1,7 @@
-import type { PendingPaymentCheckout } from "@/app/lib/payments/payment-contract";
+import type {
+  PaymentProvider,
+  PendingPaymentCheckout,
+} from "@/app/lib/payments/payment-contract";
 
 const MAX_CALLBACK_LENGTH = 100_000;
 const SUCCESS_STATUSES = new Set(["SUCCESS", "COMPLETED"]);
@@ -68,8 +71,13 @@ export function parsePendingPaymentCheckout(rawValue: string | null): PendingPay
 
   try {
     const value: unknown = JSON.parse(rawValue);
+    if (!isRecord(value)) return null;
+
+    const provider: PaymentProvider = value.provider === "sebpay"
+      ? "sebpay"
+      : "soleaspay";
+
     if (
-      !isRecord(value) ||
       value.version !== 1 ||
       typeof value.orderId !== "string" ||
       !value.orderId.trim() ||
@@ -92,6 +100,7 @@ export function parsePendingPaymentCheckout(rawValue: string | null): PendingPay
 
     return {
       version: 1,
+      provider,
       orderId: value.orderId.trim(),
       username: value.username.trim().replace(/^@/, ""),
       coins: value.coins,

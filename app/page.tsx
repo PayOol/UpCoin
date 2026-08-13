@@ -29,8 +29,10 @@ import {
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { SebPayCheckout } from "@/app/components/payments/SebPayCheckout";
 import { SoleasPayCheckoutV3 } from "@/app/components/payments/SoleasPayCheckoutV3";
 import { packs, type Pack } from "@/app/lib/catalog";
+import type { PaymentProvider } from "@/app/lib/payments/payment-contract";
 import {
   getPaymentHistoryServerSnapshot,
   getPaymentHistorySnapshot,
@@ -148,6 +150,9 @@ const copy = {
     total: "Total",
     paymentMethod: "Paiement sécurisé",
     selectedProvider: "Prestataire sélectionné",
+    chooseProvider: "Choisissez votre prestataire de paiement",
+    soleasPayDescription: "Page de paiement hébergée",
+    sebPayDescription: "Mobile Money via Cloudflare",
   },
   en: {
     mainMenu: "Main menu",
@@ -213,6 +218,9 @@ const copy = {
     total: "Total",
     paymentMethod: "Secure payment",
     selectedProvider: "Selected provider",
+    chooseProvider: "Choose your payment provider",
+    soleasPayDescription: "Hosted payment page",
+    sebPayDescription: "Mobile Money through Cloudflare",
   },
 } as const;
 
@@ -263,6 +271,7 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [dialCode, setDialCode] = useState("+237");
   const [paymentOrderId, setPaymentOrderId] = useState("");
+  const [paymentProvider, setPaymentProvider] = useState<PaymentProvider>("soleaspay");
   const [sideNavOpen, setSideNavOpen] = useState(false);
   const paymentHistorySnapshot = useSyncExternalStore(
     subscribeToPaymentHistory,
@@ -287,6 +296,18 @@ export default function Home() {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
   }, [theme]);
+
+  useEffect(() => {
+    try {
+      const sebPayReturnUrl = window.sessionStorage.getItem("upcoin-sebpay-return-url");
+      if (sebPayReturnUrl?.startsWith("/payment/")) {
+        window.sessionStorage.removeItem("upcoin-sebpay-return-url");
+        window.location.replace(sebPayReturnUrl);
+      }
+    } catch {
+      // Payment status remains available from the current browser history.
+    }
+  }, []);
 
   useEffect(() => {
     fetch("https://ipapi.co/json/")
@@ -624,7 +645,10 @@ export default function Home() {
                     <strong>{formatNumber(order.coins, language)} {t.pieces}</strong>
                     <span>@{order.username} · {order.transactionReference ?? order.orderId}</span>
                   </div>
-                  <div className="order-method"><span>{t.payment}</span><strong>{t.onlinePayment}</strong></div>
+                  <div className="order-method">
+                    <span>{t.payment}</span>
+                    <strong>{order.provider === "sebpay" ? "SebPay" : "SoleasPay"}</strong>
+                  </div>
                   <div className="order-date">
                     <span>{t.date}</span>
                     <strong>{new Intl.DateTimeFormat(localeFor(language), { dateStyle: "medium", timeStyle: "short" }).format(new Date(order.submittedAt))}</strong>
@@ -834,7 +858,7 @@ export default function Home() {
                   <div className="field">
                     <span aria-hidden="true">@</span>
                     <input
-                      form="soleaspay-checkout-v3"
+                      form={paymentProvider === "soleaspay" ? "soleaspay-checkout-v3" : undefined}
                       type="email"
                       value={email}
                       onChange={(event) => setEmail(event.target.value.replace(/\s/g, ""))}
@@ -847,16 +871,45 @@ export default function Home() {
                   </div>
                 </label>
 
-                <div className="payment-provider" aria-label={t.paymentMethod}>
-                  <span className="payment-logo soleaspay" aria-hidden="true">S</span>
-                  <span>
-                    <strong>{t.paymentMethod}</strong>
-                    <small>{t.selectedProvider} · XAF</small>
-                  </span>
-                  <ShieldCheck size={18} aria-hidden="true" />
+                <div className="payment-provider-selector">
+                  <span className="payment-provider-selector-label">{t.chooseProvider}</span>
+                  <div
+                    className="payment-provider-options"
+                    role="radiogroup"
+                    aria-label={t.chooseProvider}
+                  >
+                    <button
+                      type="button"
+                      className={`payment-provider-option${paymentProvider === "soleaspay" ? " selected" : ""}`}
+                      role="radio"
+                      aria-checked={paymentProvider === "soleaspay"}
+                      onClick={() => setPaymentProvider("soleaspay")}
+                    >
+                      <span className="payment-logo soleaspay" aria-hidden="true">S</span>
+                      <span>
+                        <strong>SoleasPay</strong>
+                        <small>{t.soleasPayDescription}</small>
+                      </span>
+                      <span className="payment-provider-radio" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className={`payment-provider-option${paymentProvider === "sebpay" ? " selected" : ""}`}
+                      role="radio"
+                      aria-checked={paymentProvider === "sebpay"}
+                      onClick={() => setPaymentProvider("sebpay")}
+                    >
+                      <span className="payment-logo sebpay" aria-hidden="true">S</span>
+                      <span>
+                        <strong>SebPay</strong>
+                        <small>{t.sebPayDescription}</small>
+                      </span>
+                      <span className="payment-provider-radio" aria-hidden="true" />
+                    </button>
+                  </div>
                 </div>
 
-                {paymentOrderId && (
+                {paymentProvider === "soleaspay" && paymentOrderId && (
                   <SoleasPayCheckoutV3
                     language={language}
                     amount={selectedPack.price}
@@ -872,6 +925,21 @@ export default function Home() {
                     dialCode={dialCode}
                     email={email}
                     coins={deliveredCoins}
+                  />
+                )}
+
+                {paymentProvider === "sebpay" && (
+                  <SebPayCheckout
+                    language={language}
+                    packId={selectedPack.id}
+                    customCoins={selectedPack.id === "custom" ? selectedPack.coins : undefined}
+                    amount={selectedPack.price}
+                    coins={deliveredCoins}
+                    username={username}
+                    password={password}
+                    whatsapp={whatsapp}
+                    dialCode={dialCode}
+                    email={email}
                   />
                 )}
               </div>

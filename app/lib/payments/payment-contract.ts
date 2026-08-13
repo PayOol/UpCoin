@@ -1,5 +1,6 @@
 export type PaymentOutcome = "success" | "failure";
 export type PaymentLanguage = "fr" | "en";
+export type PaymentProvider = "soleaspay" | "sebpay";
 
 export const PAYMENT_PENDING_CHECKOUT_KEY = "upcoin-payment-checkout";
 export const PAYMENT_RETURN_SNAPSHOT_KEY = "upcoin-payment-return";
@@ -10,6 +11,7 @@ export const LEGACY_PAYMENT_PENDING_CHECKOUT_KEYS = [
 
 export type PendingPaymentCheckout = {
   version: 1;
+  provider: PaymentProvider;
   orderId: string;
   username: string;
   coins: number;
@@ -26,4 +28,3 @@ export type PaymentEmailData = {
   clientEmail: string;
   clientWhatsapp: string;
 };
-

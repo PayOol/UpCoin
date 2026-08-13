@@ -1,5 +1,6 @@
 import type {
   PaymentOutcome,
+  PaymentProvider,
   PendingPaymentCheckout,
 } from "@/app/lib/payments/payment-contract";
 
@@ -27,6 +28,7 @@ type FinalizePaymentOptions = {
   transactionReference?: string | null;
   providerStatus?: string | null;
   confirmed?: boolean;
+  authoritative?: boolean;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -58,6 +60,9 @@ function parseEntry(value: unknown): PaymentHistoryEntry | null {
     MAX_REFERENCE_LENGTH,
   );
   const providerStatus = cleanOptionalString(value.providerStatus, MAX_PROVIDER_STATUS_LENGTH);
+  const provider: PaymentProvider = value.provider === "sebpay"
+    ? "sebpay"
+    : "soleaspay";
   const status = value.status;
 
   if (
@@ -81,6 +86,7 @@ function parseEntry(value: unknown): PaymentHistoryEntry | null {
 
   return {
     version: 1,
+    provider,
     orderId,
     username: username.replace(/^@/, ""),
     coins: value.coins,
@@ -215,7 +221,12 @@ export function finalizePaymentHistory(
   const entries = readPaymentHistory();
   const existing = entries.find((entry) => entry.orderId === checkout.orderId);
 
-  if (existing && existing.status !== "pending" && existing.status !== outcome) {
+  if (
+    existing &&
+    existing.status !== "pending" &&
+    existing.status !== outcome &&
+    options.authoritative !== true
+  ) {
     return existing;
   }
 
@@ -268,6 +279,7 @@ export function paymentHistoryEntryToCheckout(
 ): PendingPaymentCheckout {
   return {
     version: 1,
+    provider: entry.provider,
     orderId: entry.orderId,
     username: entry.username,
     coins: entry.coins,
@@ -279,7 +291,9 @@ export function paymentHistoryEntryToCheckout(
 
 export function paymentHistoryHref(entry: PaymentHistoryEntry): string | null {
   const order = encodeURIComponent(entry.orderId);
-  if (entry.status === "success") return `/payment/success?order=${order}`;
-  if (entry.status === "failure") return `/payment/failed?order=${order}`;
+  const provider = encodeURIComponent(entry.provider);
+  if (entry.status === "success") return `/payment/success?provider=${provider}&order=${order}`;
+  if (entry.status === "failure") return `/payment/failed?provider=${provider}&order=${order}`;
+  if (entry.provider === "sebpay") return `/payment/success?provider=${provider}&order=${order}`;
   return null;
 }
