@@ -13,15 +13,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "UpCoin — Recharge tes TikTok Coins",
-  description: "Une expérience simple et moderne pour recharger tes TikTok Coins avec Mobile Money.",
+  title: "UpCoin — Acheter des pièces TikTok",
+  description: "Achetez directement vos pièces TikTok avec Mobile Money sur UpCoin.",
   icons: {
     icon: "/favicon.png",
     shortcut: "/favicon.png",
   },
   openGraph: {
-    title: "UpCoin — Fais monter ton live",
-    description: "Choisis ton pack, paie avec ton mobile et reprends ton élan.",
+    title: "UpCoin — Acheter des pièces TikTok",
+    description: "Choisissez votre pack et payez avec Mobile Money.",
     type: "website",
     locale: "fr_FR",
     images: [
@@ -35,8 +35,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "UpCoin — Fais monter ton live",
-    description: "La recharge TikTok qui suit ton rythme.",
+    title: "UpCoin — Acheter des pièces TikTok",
+    description: "Choisissez votre pack et payez avec Mobile Money.",
     images: ["/og.png"],
   },
 };
