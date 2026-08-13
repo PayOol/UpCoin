@@ -20,7 +20,7 @@ type SoleasPayCheckoutV3Props = {
 };
 
 const CHECKOUT_URL = "https://pay.soleaspay.com";
-const SOLEASPAY_API_KEY = "SP6a71b145008a59C9f3nZ7-RQFdVcGKZuU6S_dEvkSC2yA3E3InWGu0jkAP";
+const SOLEASPAY_API_KEY = "SP6a7cdb9fd6efev3FO30BqaWDh9pU58H_eMkxJBC07WZv7oXsPI8r02-8AP";
 const subscribeToOrigin = () => () => {};
 
 export function SoleasPayCheckoutV3({
