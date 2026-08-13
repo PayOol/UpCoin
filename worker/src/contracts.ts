@@ -23,6 +23,10 @@ export type PaymentResponse = {
   status: PaymentStatus;
   providerStatus: string | null;
   providerLink: string | null;
+  packId: PackId;
+  coins: number;
+  amount: number;
+  currency: string;
 };
 
 export type SebPayOperator = {
@@ -271,11 +275,18 @@ export function parseWebhookPayload(value: unknown): WebhookPayload {
 }
 
 export function paymentResponse(row: PaymentRow): PaymentResponse {
+  if (!isPackId(row.pack_id)) {
+    throw new HttpError(500, "Transaction persistée invalide.", "invalid_stored_pack");
+  }
   return {
     orderId: row.order_id,
     transactionId: row.transaction_id,
     status: row.status,
     providerStatus: row.provider_status,
     providerLink: row.provider_link,
+    packId: row.pack_id,
+    coins: row.coins,
+    amount: row.amount,
+    currency: row.currency,
   };
 }

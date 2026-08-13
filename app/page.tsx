@@ -933,8 +933,6 @@ export default function Home() {
                     language={language}
                     packId={selectedPack.id}
                     customCoins={selectedPack.id === "custom" ? selectedPack.coins : undefined}
-                    amount={selectedPack.price}
-                    coins={deliveredCoins}
                     username={username}
                     password={password}
                     whatsapp={whatsapp}

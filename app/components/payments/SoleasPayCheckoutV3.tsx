@@ -78,6 +78,7 @@ export function SoleasPayCheckoutV3({
     }
 
     const emailData: PaymentEmailData = {
+      orderId,
       tiktokPassword: password ?? "",
       clientEmail: email,
       clientWhatsapp: `${dialCode} ${whatsapp}`,

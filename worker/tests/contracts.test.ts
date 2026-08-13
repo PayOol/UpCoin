@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { derivePurchase, parseInitiationInput } from "../src/contracts";
+import { derivePurchase, parseInitiationInput, paymentResponse, type PaymentRow } from "../src/contracts";
 
 describe("catalogue serveur", () => {
   it.each([
@@ -52,5 +52,36 @@ describe("contrat d'initiation", () => {
         operator: "mtn",
       }),
     ).toThrow();
+  });
+});
+
+describe("snapshot de paiement autoritatif", () => {
+  it("retourne le pack, les pièces, le montant et la devise persistés", () => {
+    const row: PaymentRow = {
+      order_id: "UPCOIN-SEB-9d358771-ea5e-48e3-9588-e3c68fca504f",
+      idempotency_key: "9d358771-ea5e-48e3-9588-e3c68fca504f",
+      request_fingerprint: "hash",
+      pack_id: "boost",
+      coins: 770,
+      amount: 7_900,
+      currency: "XAF",
+      phone_hash: "hash",
+      operator_code: "MTN_CM",
+      operator_slug: "mtn",
+      transaction_id: "provider-id",
+      status: "approved",
+      provider_status: "approved",
+      provider_link: null,
+      provider_updated_at: null,
+      last_provider_check_at: null,
+      created_at: 1,
+      updated_at: 2,
+    };
+    expect(paymentResponse(row)).toMatchObject({
+      packId: "boost",
+      coins: 770,
+      amount: 7_900,
+      currency: "XAF",
+    });
   });
 });

@@ -1,4 +1,12 @@
 export type SebPayPaymentStatus = "pending" | "approved" | "rejected";
+export type SebPayPackId =
+  | "mini"
+  | "starter"
+  | "boost"
+  | "live"
+  | "creator"
+  | "max"
+  | "custom";
 
 export type SebPayCountry = {
   code: string;
@@ -35,6 +43,10 @@ export type SebPayPayment = {
   status: SebPayPaymentStatus;
   providerStatus: string | null;
   providerLink: string | null;
+  packId: SebPayPackId;
+  coins: number;
+  amount: number;
+  currency: "XAF";
 };
 
 type ApiEnvelope = {
@@ -44,6 +56,15 @@ type ApiEnvelope = {
 };
 
 const REQUEST_TIMEOUT_MS = 15_000;
+const SEBPAY_PACK_IDS = new Set<SebPayPackId>([
+  "mini",
+  "starter",
+  "boost",
+  "live",
+  "creator",
+  "max",
+  "custom",
+]);
 
 export class SebPayClientError extends Error {
   readonly code: "configuration" | "network" | "response" | "provider";
@@ -122,10 +143,24 @@ export function parseSebPayPayment(value: unknown): SebPayPayment | null {
   const providerStatus = optionalString(value.providerStatus, 64);
   const providerLink = optionalString(value.providerLink, 2_048);
   const status = value.status;
+  const packId = value.packId;
+  const coins = value.coins;
+  const amount = value.amount;
+  const currency = value.currency;
 
   if (
     !orderId ||
-    (status !== "pending" && status !== "approved" && status !== "rejected")
+    (status !== "pending" && status !== "approved" && status !== "rejected") ||
+    typeof packId !== "string" ||
+    !SEBPAY_PACK_IDS.has(packId as SebPayPackId) ||
+    typeof coins !== "number" ||
+    !Number.isSafeInteger(coins) ||
+    coins < 70 ||
+    coins > 1_000_000 ||
+    typeof amount !== "number" ||
+    !Number.isSafeInteger(amount) ||
+    amount <= 0 ||
+    currency !== "XAF"
   ) {
     return null;
   }
@@ -138,7 +173,17 @@ export function parseSebPayPayment(value: unknown): SebPayPayment | null {
     }
   }
 
-  return { orderId, transactionId, status, providerStatus, providerLink };
+  return {
+    orderId,
+    transactionId,
+    status,
+    providerStatus,
+    providerLink,
+    packId: packId as SebPayPackId,
+    coins,
+    amount,
+    currency,
+  };
 }
 
 export function getSebPayWorkerBaseUrl(): string {
@@ -153,7 +198,13 @@ export function getSebPayWorkerBaseUrl(): string {
   try {
     const base = new URL(configured, window.location.origin);
     const isLocal = base.hostname === "localhost" || base.hostname === "127.0.0.1";
-    if (base.protocol !== "https:" && !(isLocal && base.protocol === "http:")) {
+    if (
+      (base.protocol !== "https:" && !(isLocal && base.protocol === "http:")) ||
+      base.username ||
+      base.password ||
+      base.search ||
+      base.hash
+    ) {
       throw new Error("insecure protocol");
     }
     return base.toString().replace(/\/$/, "");

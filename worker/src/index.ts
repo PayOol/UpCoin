@@ -8,7 +8,7 @@ import {
   type PaymentRow,
   type SebPayOperator,
 } from "./contracts";
-import { sha256Hex, verifyHmacSha256Hex } from "./crypto";
+import { computeHmacSha256Hex, verifyHmacSha256Hex } from "./crypto";
 import {
   ProviderError,
   createCollection,
@@ -264,6 +264,15 @@ async function handleInitiation(
   origin: string | null,
   requestId: string,
 ): Promise<Response> {
+  const rateLimit = await env.PAYMENT_RATE_LIMITER.limit({ key: "sebpay-initiation" });
+  if (!rateLimit.success) {
+    structuredLog("warn", "sebpay_initiation_rate_limited", requestId, { status: 429 });
+    throw new HttpError(
+      429,
+      "Trop de demandes de paiement. Réessayez dans une minute.",
+      "payment_rate_limited",
+    );
+  }
   const input = parseInitiationInput(await readRequestJson(request, MAX_INITIATION_BODY_BYTES));
   const purchase = derivePurchase(input.packId, input.customCoins);
   const [country, operators] = await Promise.all([fetchCountry(env), fetchOperators(env)]);
@@ -277,16 +286,19 @@ async function handleInitiation(
   }
 
   const [phoneHash, requestFingerprint] = await Promise.all([
-    sha256Hex(input.phone),
-    sha256Hex(
-      JSON.stringify({
-        packId: purchase.packId,
-        coins: purchase.coins,
-        amount: purchase.amount,
-        phone: input.phone,
-        operatorCode: operator.code,
-        operatorSlug: operator.slug,
-      }),
+    computeHmacSha256Hex(env.SEBPAY_SECRET_KEY, new TextEncoder().encode(input.phone)),
+    computeHmacSha256Hex(
+      env.SEBPAY_SECRET_KEY,
+      new TextEncoder().encode(
+        JSON.stringify({
+          packId: purchase.packId,
+          coins: purchase.coins,
+          amount: purchase.amount,
+          phone: input.phone,
+          operatorCode: operator.code,
+          operatorSlug: operator.slug,
+        }),
+      ),
     ),
   ]);
   const existing = await findByIdempotencyKey(env, input.idempotencyKey);
@@ -498,7 +510,10 @@ async function handleWebhook(
     return successResponse({ received: true }, 200, origin);
   }
 
-  const phoneHash = await sha256Hex(payload.customerPhone);
+  const phoneHash = await computeHmacSha256Hex(
+    env.SEBPAY_SECRET_KEY,
+    new TextEncoder().encode(payload.customerPhone),
+  );
   const reconciled =
     payload.externalReference === stored.order_id &&
     payload.amount === stored.amount &&

@@ -112,6 +112,7 @@ function extractList(value: unknown, candidateKeys: readonly string[]): unknown[
 
 function parseOperator(value: unknown): SebPayOperator | null {
   if (!isRecord(value)) return null;
+  if (value.is_active === false || value.payin_enabled === false) return null;
   const name = readRequiredString(value.name, 120);
   const code = readRequiredString(value.code, 100);
   const slug = readRequiredString(value.slug, 100);

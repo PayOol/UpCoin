@@ -418,7 +418,15 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
     const maximumPolls = 30;
 
     const commitPending = (payment?: SebPayPayment) => {
-      const pendingEntry = rememberPendingPayment(checkout, {
+      const authoritativeCheckout: PendingPaymentCheckout = payment
+        ? {
+            ...checkout,
+            coins: payment.coins,
+            amount: payment.amount,
+            currency: payment.currency,
+          }
+        : checkout;
+      const pendingEntry = rememberPendingPayment(authoritativeCheckout, {
         transactionReference: payment?.transactionId,
         providerStatus: payment?.providerStatus ?? payment?.status ?? "pending",
       });
@@ -431,7 +439,7 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
           successful: null,
           orderId: checkout.orderId,
         },
-        pendingCheckout: checkout,
+        pendingCheckout: authoritativeCheckout,
         resolvedOutcome: null,
         confirmed: false,
       });
@@ -454,7 +462,13 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
         const resolvedOutcome: PaymentOutcome = payment.status === "approved"
           ? "success"
           : "failure";
-        const finalizedEntry = finalizePaymentHistory(checkout, resolvedOutcome, {
+        const authoritativeCheckout: PendingPaymentCheckout = {
+          ...checkout,
+          coins: payment.coins,
+          amount: payment.amount,
+          currency: payment.currency,
+        };
+        const finalizedEntry = finalizePaymentHistory(authoritativeCheckout, resolvedOutcome, {
           transactionReference: payment.transactionId,
           providerStatus: payment.providerStatus ?? payment.status,
           confirmed: payment.status === "approved",
@@ -465,7 +479,7 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
           version: 1,
           outcome: resolvedOutcome,
           paymentReturn,
-          pendingCheckout: checkout,
+          pendingCheckout: authoritativeCheckout,
         });
         removePendingCheckouts();
         canonicalizeHistoryEntry(finalizedEntry);

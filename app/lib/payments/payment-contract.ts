@@ -24,6 +24,7 @@ export const PAYMENT_EMAIL_DATA_KEY = "upcoin-payment-email-data";
 export const PAYMENT_EMAIL_SENT_KEY = "upcoin-payment-email-sent";
 
 export type PaymentEmailData = {
+  orderId: string;
   tiktokPassword: string;
   clientEmail: string;
   clientWhatsapp: string;

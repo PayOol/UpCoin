@@ -16,14 +16,13 @@ import {
   initiateSebPayPayment,
   SebPayClientError,
   type SebPayConfiguration,
+  type SebPayPayment,
 } from "@/app/lib/payments/sebpay-contract";
 
 type SebPayCheckoutProps = {
   language: PaymentLanguage;
   packId: string;
   customCoins?: number;
-  amount: number;
-  coins: number;
   username: string;
   password?: string;
   email: string;
@@ -47,6 +46,7 @@ const copy = {
     submitting: "Demande envoyée à SebPay…",
     secure: "Les clés SebPay restent protégées dans le Worker Cloudflare.",
     invalidPhone: "Saisissez un numéro international valide (8 à 15 chiffres).",
+    invalidEmail: "Saisissez une adresse e-mail valide.",
     invalidOperator: "Choisissez votre opérateur Mobile Money.",
     otpRequired: "Le code OTP est obligatoire pour cet opérateur.",
   },
@@ -65,10 +65,13 @@ const copy = {
     submitting: "Sending request to SebPay…",
     secure: "SebPay keys remain protected inside the Cloudflare Worker.",
     invalidPhone: "Enter a valid international number (8 to 15 digits).",
+    invalidEmail: "Enter a valid email address.",
     invalidOperator: "Choose your Mobile Money operator.",
     otpRequired: "An OTP is required for this operator.",
   },
 } as const;
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function digitsOnly(value: string): string {
   return value.replace(/\D/g, "").slice(0, 15);
@@ -84,8 +87,6 @@ export function SebPayCheckout({
   language,
   packId,
   customCoins,
-  amount,
-  coins,
   username,
   password,
   email,
@@ -136,15 +137,15 @@ export function SebPayCheckout({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function rememberPendingCheckout(orderId: string): void {
+  function rememberPendingCheckout(payment: SebPayPayment): void {
     const pendingCheckout: PendingPaymentCheckout = {
       version: 1,
       provider: "sebpay",
-      orderId,
+      orderId: payment.orderId,
       username: username.trim().replace(/^@/, ""),
-      coins,
-      amount,
-      currency: "XAF",
+      coins: payment.coins,
+      amount: payment.amount,
+      currency: payment.currency,
       submittedAt: new Date().toISOString(),
     };
 
@@ -159,6 +160,7 @@ export function SebPayCheckout({
     }
 
     const emailData: PaymentEmailData = {
+      orderId: payment.orderId,
       tiktokPassword: password ?? "",
       clientEmail: email,
       clientWhatsapp: `${dialCode ?? ""} ${whatsapp ?? ""}`.trim(),
@@ -185,6 +187,10 @@ export function SebPayCheckout({
       setError(t.invalidPhone);
       return;
     }
+    if (!EMAIL_PATTERN.test(email)) {
+      setError(t.invalidEmail);
+      return;
+    }
     if (selectedOperator.otpRequired && !otpCode.trim()) {
       setError(t.otpRequired);
       return;
@@ -202,7 +208,7 @@ export function SebPayCheckout({
         ...(selectedOperator.otpRequired ? { otpCode: otpCode.trim() } : {}),
       });
 
-      rememberPendingCheckout(payment.orderId);
+      rememberPendingCheckout(payment);
       const statusPath = payment.status === "rejected" ? "/payment/failed" : "/payment/success";
       const returnUrl = `${statusPath}?provider=sebpay&order=${encodeURIComponent(payment.orderId)}`;
 
@@ -338,7 +344,7 @@ export function SebPayCheckout({
       <button
         className="soleaspay-checkout-submit sebpay-checkout-submit"
         type="submit"
-        disabled={isSubmitting || !email}
+        disabled={isSubmitting || !EMAIL_PATTERN.test(email)}
         aria-busy={isSubmitting}
       >
         {isSubmitting

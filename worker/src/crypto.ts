@@ -18,11 +18,6 @@ function hexToBytes(hex: string): Uint8Array | null {
   return bytes;
 }
 
-export async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(value));
-  return bytesToHex(new Uint8Array(digest));
-}
-
 export async function computeHmacSha256(
   secret: string,
   body: Uint8Array,

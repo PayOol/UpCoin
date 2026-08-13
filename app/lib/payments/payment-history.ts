@@ -232,7 +232,7 @@ export function finalizePaymentHistory(
 
   if (existing && existing.status === outcome) {
     const updatedEntry: PaymentHistoryEntry = {
-      ...existing,
+      ...(options.authoritative === true ? { ...existing, ...checkout } : existing),
       transactionReference: existing.transactionReference ?? cleanOptionalString(
         options.transactionReference,
         MAX_REFERENCE_LENGTH,

@@ -2,14 +2,12 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "upcoin",
   "compatibility_date": "2026-08-13",
+  "main": "vinext/server/fetch-handler",
+  "assets": {
+    "directory": "dist/client",
+    "not_found_handling": "single-page-application"
+  },
   "observability": {
     "enabled": true
-  },
-  "assets": {
-    "not_found_handling": "single-page-application"
   }
-,
-  "cache": { "enabled": true }
-,
-  "main": "vinext/server/fetch-handler"
 }

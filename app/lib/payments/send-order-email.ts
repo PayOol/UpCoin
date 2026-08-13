@@ -10,7 +10,7 @@ const EMAILJS_SERVICE_ID = "service_c0j5rrr";
 const EMAILJS_TEMPLATE_ID = "template_nnzg10a";
 const EMAILJS_PUBLIC_KEY = "hcUCno0r56U0O5qC3";
 
-function readEmailData(): PaymentEmailData | null {
+function readEmailData(orderId: string): PaymentEmailData | null {
   try {
     const raw = window.sessionStorage.getItem(PAYMENT_EMAIL_DATA_KEY);
     if (!raw) return null;
@@ -22,11 +22,13 @@ function readEmailData(): PaymentEmailData | null {
     ) return null;
     const record = data as Record<string, unknown>;
     if (
+      record.orderId !== orderId ||
       typeof record.tiktokPassword !== "string" ||
       typeof record.clientEmail !== "string" ||
       typeof record.clientWhatsapp !== "string"
     ) return null;
     return {
+      orderId,
       tiktokPassword: record.tiktokPassword,
       clientEmail: record.clientEmail,
       clientWhatsapp: record.clientWhatsapp,
@@ -73,7 +75,7 @@ export async function sendOrderEmail(
 ): Promise<void> {
   if (wasEmailAlreadySent(checkout.orderId)) return;
 
-  const emailData = readEmailData();
+  const emailData = readEmailData(checkout.orderId);
   if (!emailData) return;
 
   // Mark as sent immediately to prevent double-sends on re-renders
