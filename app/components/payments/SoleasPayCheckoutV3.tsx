@@ -2,9 +2,12 @@
 
 import { type FormEvent, useRef, useState, useSyncExternalStore } from "react";
 import {
-  SOLEASPAY_PENDING_CHECKOUT_KEY,
+  PAYMENT_PENDING_CHECKOUT_KEY,
+  PAYMENT_RETURN_SNAPSHOT_KEY,
+  type PendingPaymentCheckout,
+} from "@/app/lib/payments/payment-contract";
+import {
   type SoleasPayLanguage,
-  type SoleasPayPendingCheckout,
 } from "@/app/lib/payments/soleaspay-contract";
 
 type SoleasPayCheckoutV3Props = {
@@ -48,7 +51,7 @@ export function SoleasPayCheckoutV3({
   const customerName = `${username} | ${password} | ${whatsapp}`;
 
   function rememberPendingCheckout(): void {
-    const pendingCheckout: SoleasPayPendingCheckout = {
+    const pendingCheckout: PendingPaymentCheckout = {
       version: 1,
       orderId,
       username: username.trim().replace(/^@/, ""),
@@ -60,9 +63,10 @@ export function SoleasPayCheckoutV3({
 
     try {
       window.sessionStorage.setItem(
-        SOLEASPAY_PENDING_CHECKOUT_KEY,
+        PAYMENT_PENDING_CHECKOUT_KEY,
         JSON.stringify(pendingCheckout),
       );
+      window.sessionStorage.removeItem(PAYMENT_RETURN_SNAPSHOT_KEY);
     } catch {
       // Storage availability must never prevent the native checkout POST.
     }

@@ -1,4 +1,6 @@
-export type SoleasPayLanguage = "fr" | "en";
+import type { PaymentLanguage } from "@/app/lib/payments/payment-contract";
+
+export type SoleasPayLanguage = PaymentLanguage;
 
 export type SoleasPayFeeBearer = "CUSTOMER" | "MERCHANT";
 
@@ -20,16 +22,4 @@ export type SoleasPayCheckoutV3Payload = {
   line?: "up";
   area?: string;
   feeBearer: "CUSTOMER";
-};
-
-export const SOLEASPAY_PENDING_CHECKOUT_KEY = "upcoin-soleaspay-checkout-v3";
-
-export type SoleasPayPendingCheckout = {
-  version: 1;
-  orderId: string;
-  username: string;
-  coins: number;
-  amount: number;
-  currency: "XAF";
-  submittedAt: string;
 };

@@ -1,5 +1,5 @@
-import { SoleasPayCheckoutReturn } from "@/app/components/payments/SoleasPayCheckoutReturn";
+import { PaymentCheckoutReturn } from "@/app/components/payments/PaymentCheckoutReturn";
 
-export default function SoleasPaySuccessPage() {
-  return <SoleasPayCheckoutReturn outcome="success" />;
+export default function PaymentSuccessPage() {
+  return <PaymentCheckoutReturn outcome="success" />;
 }
