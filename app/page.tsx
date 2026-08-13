@@ -92,6 +92,8 @@ export default function Home() {
   const selectPack = (pack: Pack) => {
     setSelectedPack(pack);
     setCustomCoins(0);
+    setStep(1);
+    setCheckoutOpen(true);
   };
 
   const updateCustomCoins = (value: number) => {
