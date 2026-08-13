@@ -451,7 +451,7 @@ a { color: inherit; text-decoration: none; }
   backdrop-filter: blur(14px);
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   animation: fadeIn .18s ease;
 }
 
@@ -624,8 +624,8 @@ a { color: inherit; text-decoration: none; }
   }
   .mobile-buy > span { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
   .mobile-buy small { opacity: .72; font-size: 8px; }
-  .checkout-overlay { padding: 0; align-items: flex-end; }
-  .checkout-panel { width: 100%; max-height: 94vh; border-radius: 22px 22px 0 0; }
+  .checkout-overlay { padding: 14px; align-items: center; justify-content: center; }
+  .checkout-panel { width: min(480px, 100%); max-height: calc(100vh - 28px); border-radius: 22px; }
   .checkout-step, .checkout-success { padding: 68px 21px 24px; }
   .checkout-step h2, .checkout-success h2 { font-size: 29px; }
 }

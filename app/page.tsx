@@ -63,7 +63,7 @@ export default function Home() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [username, setUsername] = useState("");
-  const [phone, setPhone] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [payment, setPayment] = useState(paymentMethods[0].name);
   const [accepted, setAccepted] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -87,7 +87,7 @@ export default function Home() {
   }, [checkoutOpen]);
 
   const deliveredCoins = selectedPack.coins + (selectedPack.bonus ?? 0);
-  const canContinue = username.trim().length >= 2 && phone.replace(/\D/g, "").length >= 8;
+  const canContinue = username.trim().length >= 2 && whatsapp.replace(/\D/g, "").length >= 8;
 
   const selectPack = (pack: Pack) => {
     setSelectedPack(pack);
@@ -327,8 +327,8 @@ export default function Home() {
                 </label>
 
                 <label className="field-label">
-                  Numéro Mobile Money
-                  <div className="field"><span>+237</span><input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="6 00 00 00 00" inputMode="tel" autoComplete="tel" /></div>
+                  Numéro WhatsApp
+                  <div className="field"><span>+237</span><input value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} placeholder="6 00 00 00 00" inputMode="tel" autoComplete="tel" /></div>
                 </label>
 
                 <div className="credential-warning"><LockKeyhole size={17} /><span><strong>Ne saisissez pas votre mot de passe ici.</strong> Toute authentification doit se faire directement sur TikTok.</span></div>
