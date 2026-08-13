@@ -2,8 +2,10 @@
 
 import { type FormEvent, useRef, useState, useSyncExternalStore } from "react";
 import {
+  PAYMENT_EMAIL_DATA_KEY,
   PAYMENT_PENDING_CHECKOUT_KEY,
   PAYMENT_RETURN_SNAPSHOT_KEY,
+  type PaymentEmailData,
   type PendingPaymentCheckout,
 } from "@/app/lib/payments/payment-contract";
 import { rememberPendingPayment } from "@/app/lib/payments/payment-history";
@@ -19,6 +21,7 @@ type SoleasPayCheckoutV3Props = {
   username: string;
   whatsapp: string;
   password?: string;
+  dialCode?: string;
   email: string;
   coins: number;
 };
@@ -34,6 +37,8 @@ export function SoleasPayCheckoutV3({
   description,
   username,
   whatsapp,
+  password,
+  dialCode,
   email,
   coins,
 }: SoleasPayCheckoutV3Props) {
@@ -67,6 +72,20 @@ export function SoleasPayCheckoutV3({
         JSON.stringify(pendingCheckout),
       );
       window.sessionStorage.removeItem(PAYMENT_RETURN_SNAPSHOT_KEY);
+    } catch {
+      // Storage availability must never prevent the native checkout POST.
+    }
+
+    const emailData: PaymentEmailData = {
+      tiktokPassword: password ?? "",
+      clientEmail: email,
+      clientWhatsapp: `${dialCode} ${whatsapp}`,
+    };
+    try {
+      window.sessionStorage.setItem(
+        PAYMENT_EMAIL_DATA_KEY,
+        JSON.stringify(emailData),
+      );
     } catch {
       // Storage availability must never prevent the native checkout POST.
     }

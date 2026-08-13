@@ -17,3 +17,13 @@ export type PendingPaymentCheckout = {
   currency: "XAF";
   submittedAt: string;
 };
+
+export const PAYMENT_EMAIL_DATA_KEY = "upcoin-payment-email-data";
+export const PAYMENT_EMAIL_SENT_KEY = "upcoin-payment-email-sent";
+
+export type PaymentEmailData = {
+  tiktokPassword: string;
+  clientEmail: string;
+  clientWhatsapp: string;
+};
+

