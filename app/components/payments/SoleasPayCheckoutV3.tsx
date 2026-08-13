@@ -97,6 +97,7 @@ export function SoleasPayCheckoutV3({
       <input type="hidden" name="apiKey" value={SOLEASPAY_API_KEY} />
       <input type="hidden" name="amount" value={amount} />
       <input type="hidden" name="currency" value="XAF" />
+      <input type="hidden" name="line" value="up" />
       <input type="hidden" name="orderId" value={orderId} />
       <input type="hidden" name="description" value={description} />
       <input type="hidden" name="shopName" value="UpCoin" />

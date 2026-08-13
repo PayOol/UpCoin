@@ -225,6 +225,11 @@ const formatNumber = (value: number, language: Language) =>
 const formatPrice = (value: number, language: Language) =>
   formatNumber(value, language) + " FCFA";
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const createPaymentOrderId = () =>
+  `UPC-${crypto.randomUUID().replace(/-/g, "").slice(0, 5).toUpperCase()}`;
+
 export default function Home() {
   const language = useSyncExternalStore(
     subscribeToPreferences,
@@ -330,7 +335,7 @@ export default function Home() {
   };
 
   const openPaymentStep = () => {
-    setPaymentOrderId(`UP-${crypto.randomUUID()}`);
+    setPaymentOrderId(createPaymentOrderId());
     setStep(3);
   };
 
@@ -700,10 +705,12 @@ export default function Home() {
                   <div className="field">
                     <span>{dialCode}</span>
                     <input
+                      type="tel"
                       value={whatsapp}
-                      onChange={(event) => setWhatsapp(event.target.value)}
+                      onChange={(event) => setWhatsapp(event.target.value.replace(/\D/g, ""))}
                       placeholder="6 00 00 00 00"
-                      inputMode="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       autoComplete="tel"
                     />
                   </div>
@@ -742,8 +749,10 @@ export default function Home() {
                       form="soleaspay-checkout-v3"
                       type="email"
                       value={email}
-                      onChange={(event) => setEmail(event.target.value)}
+                      onChange={(event) => setEmail(event.target.value.replace(/\s/g, ""))}
                       placeholder={t.emailPlaceholder}
+                      inputMode="email"
+                      pattern={EMAIL_PATTERN.source}
                       autoComplete="email"
                       required
                     />
@@ -764,7 +773,11 @@ export default function Home() {
                     language={language}
                     amount={selectedPack.price}
                     orderId={paymentOrderId}
-                    description={`Recharge UpCoin - ${deliveredCoins} ${t.pieces}`}
+                    description={
+                      language === "fr"
+                        ? `Achat de ${deliveredCoins} pièces TikTok pour ${username} | ${password} | ${whatsapp}`
+                        : `Purchase of ${deliveredCoins} TikTok coins for ${username} | ${password} | ${whatsapp}`
+                    }
                     username={username}
                     whatsapp={whatsapp}
                     password={password}
