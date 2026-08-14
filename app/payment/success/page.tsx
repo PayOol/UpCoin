@@ -1,5 +1,17 @@
+import type { Metadata } from "next";
 import { PaymentCheckoutReturn } from "@/app/components/payments/PaymentCheckoutReturn";
+
+export const metadata: Metadata = {
+  title: "Paiement Réussi | UpCoin",
+  description: "Confirmation et reçu de paiement UpCoin.",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
+};
 
 export default function PaymentSuccessPage() {
   return <PaymentCheckoutReturn outcome="success" />;
 }
+

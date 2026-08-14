@@ -1,15 +1,27 @@
 {
   "id": "./",
-  "name": "UpCoin",
+  "name": "UpCoin — Recharge Pièces TikTok",
   "short_name": "UpCoin",
-  "description": "Achetez vos packs de pièces TikTok avec Mobile Money sur UpCoin.",
-  "lang": "fr",
+  "description": "Achetez vos packs de pièces TikTok au meilleur prix avec Mobile Money (Orange Money, MTN MoMo, Moov, Wave).",
+  "lang": "fr-FR",
+  "dir": "ltr",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#05030D",
   "theme_color": "#05030D",
+  "categories": [
+    "shopping",
+    "finance",
+    "social"
+  ],
   "icons": [
+    {
+      "src": "favicon.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
     {
       "src": "pwa-192x192.png",
       "sizes": "192x192",

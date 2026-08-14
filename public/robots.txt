@@ -1,0 +1,10 @@
+# Robots.txt for UpCoin (https://payool.github.io/UpCoin/)
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /payment/success/
+Disallow: /payment/failed/
+Disallow: /payment/failure/
+
+# Sitemaps
+Sitemap: https://payool.github.io/UpCoin/sitemap.xml
