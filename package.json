@@ -6,6 +6,10 @@
     "node": ">=22.13.0"
   },
   "scripts": {
+    "generate:sw": "node scripts/generate-sw.js",
+    "predev": "npm run generate:sw",
+    "prebuild": "npm run generate:sw",
+    "prebuild:pages": "npm run generate:sw",
     "dev": "vinext dev --port 3000",
     "build": "vinext build",
     "build:pages": "next build",
