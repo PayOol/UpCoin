@@ -278,8 +278,10 @@ export const dialCodes: Record<string, string> = Object.fromEntries(
   ALL_COUNTRIES.map((c) => [c.code, c.dialCode]),
 );
 
+type IpLookupResult = { countryCode: string; dialCode?: string } | null;
+
 export async function detectUserCountry(): Promise<{ countryCode: string; dialCode: string } | null> {
-  const sources = [
+  const sources: (() => Promise<IpLookupResult>)[] = [
     async () => {
       const res = await fetch("https://ipwho.is/", { signal: AbortSignal.timeout(3000) });
       const data = (await res.json()) as { success?: boolean; country_code?: string; calling_code?: string };
