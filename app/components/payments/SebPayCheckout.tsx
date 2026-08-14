@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { ExternalLink, LoaderCircle, ShieldCheck } from "lucide-react";
+import { ExternalLink, LoaderCircle } from "lucide-react";
 import {
   PAYMENT_EMAIL_DATA_KEY,
   PAYMENT_PENDING_CHECKOUT_KEY,
@@ -39,20 +39,20 @@ const copy = {
     title: "Informations Mobile Money",
     country: "Pays",
     operator: "Op\u00e9rateur",
-    phone: "Num\u00e9ro Mobile Money",
+    phone: "Numéro Mobile Money",
     phoneHint: "Format international, sans le signe +",
-    otp: "Code OTP",
-    otpInstruction: "Composez {code} sur votre t\u00e9l\u00e9phone pour obtenir le code OTP.",
-    openProvider: "Ouvrir la page de validation de l'op\u00e9rateur",
+    otp: "OTP",
+    otpInstruction: "Composez {code} sur votre téléphone pour obtenir le code OTP.",
+    openProvider: "Ouvrir la page de validation de l'opérateur",
     pay: "Payer avec SebPay",
-    submitting: "Paiement en cours\u2026 Consultez votre t\u00e9l\u00e9phone.",
-    loadingCatalog: "Chargement des pays et op\u00e9rateurs SebPay\u2026",
-    catalogUnavailable: "Le catalogue SebPay est momentan\u00e9ment indisponible.",
-    retry: "R\u00e9essayer",
-    invalidPhone: "Saisissez un num\u00e9ro international valide (8 \u00e0 15 chiffres).",
+    submitting: "Paiement en cours… Consultez votre téléphone.",
+    loadingCatalog: "Chargement des pays et opérateurs SebPay…",
+    catalogUnavailable: "Le catalogue SebPay est momentanément indisponible.",
+    retry: "Réessayer",
+    invalidPhone: "Saisissez un numéro international valide (8 à 15 chiffres).",
     invalidEmail: "Saisissez une adresse e-mail valide.",
     invalidOtp: "Saisissez le code OTP requis.",
-    pending: "Le paiement est toujours en attente. V\u00e9rifiez votre t\u00e9l\u00e9phone puis r\u00e9essayez.",
+    pending: "Le paiement est toujours en attente. Vérifiez votre téléphone puis réessayez.",
   },
   en: {
     title: "Mobile Money details",
@@ -60,7 +60,7 @@ const copy = {
     operator: "Operator",
     phone: "Mobile Money number",
     phoneHint: "International format, without the + sign",
-    otp: "OTP code",
+    otp: "OTP",
     otpInstruction: "Dial {code} on your phone to get the OTP code.",
     openProvider: "Open the operator validation page",
     pay: "Pay with SebPay",
@@ -342,58 +342,7 @@ export function SebPayCheckout({
         <strong>{paymentAmount.toLocaleString()} {selectedCountry.currency}</strong>
       </div>
 
-      <div className="sebpay-fields-row">
-        <label className="field-label">
-          <span>{t.country} <span className="required">*</span></span>
-          <div className="field sebpay-select-field">
-            <select
-              value={countryCode}
-              onChange={(event) => {
-                const nextCountryCode = event.target.value;
-                const nextCountry = countries.find(
-                  (country) => country.code === nextCountryCode,
-                );
-                setCountryCode(nextCountryCode);
-                setOperator(nextCountry?.operators[0]?.code ?? "");
-                setPhone("");
-                setOtpCode("");
-                setError(null);
-              }}
-              disabled={isSubmitting}
-              required
-            >
-              {countries.map((country) => (
-                <option value={country.code} key={country.id}>
-                  {country.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </label>
-
-        <label className="field-label">
-          <span>{t.operator} <span className="required">*</span></span>
-          <div className="field sebpay-select-field">
-            <select
-              value={operator}
-              onChange={(event) => {
-                setOperator(event.target.value);
-                setOtpCode("");
-                setError(null);
-              }}
-              disabled={isSubmitting || availableOperators.length === 0}
-              required
-            >
-              {availableOperators.map((candidate) => (
-                <option value={candidate.code} key={candidate.id}>
-                  {candidate.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </label>
-      </div>
-
+      {/* 1. Numéro Mobile Money */}
       <label className="field-label">
         <span>{t.phone} <span className="required">*</span></span>
         <div className="field">
@@ -416,6 +365,7 @@ export function SebPayCheckout({
         <small className="sebpay-field-help">{t.phoneHint}</small>
       </label>
 
+      {/* 2. OTP (si requis par l'opérateur) */}
       {selectedOperator?.otpRequired && (
         <label className="field-label">
           <span>{t.otp} <span className="required">*</span></span>
@@ -442,6 +392,61 @@ export function SebPayCheckout({
           </div>
         </label>
       )}
+
+      {/* 3 & 4. Opérateur et Pays sur la même ligne (desktop et mobile) */}
+      <div className="sebpay-fields-row sebpay-operator-country-row">
+        <label className="field-label">
+          <span>{t.operator} <span className="required">*</span></span>
+          <div className="field sebpay-select-field">
+            <select
+              value={operator}
+              onChange={(event) => {
+                setOperator(event.target.value);
+                setOtpCode("");
+                setError(null);
+              }}
+              disabled={isSubmitting || availableOperators.length === 0}
+              required
+            >
+              {availableOperators.map((candidate) => (
+                <option value={candidate.code} key={candidate.id}>
+                  {candidate.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </label>
+
+        <label className="field-label">
+          <span>{t.country} <span className="required">*</span></span>
+          <div className="field sebpay-select-field">
+            <select
+              value={countryCode}
+              onChange={(event) => {
+                const nextCountryCode = event.target.value;
+                const nextCountry = countries.find(
+                  (country) => country.code === nextCountryCode,
+                );
+                setCountryCode(nextCountryCode);
+                setOperator(nextCountry?.operators[0]?.code ?? "");
+                if (whatsapp) {
+                  setPhone(initialLocalPhone(whatsapp, nextCountry));
+                }
+                setOtpCode("");
+                setError(null);
+              }}
+              disabled={isSubmitting}
+              required
+            >
+              {countries.map((country) => (
+                <option value={country.code} key={country.id}>
+                  {country.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </label>
+      </div>
 
       {error && <p className="sebpay-checkout-error" role="alert">{error}</p>}
 
