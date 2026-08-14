@@ -41,11 +41,21 @@ npm run deploy:payments
 
 Les details sont dans [`worker/README.md`](worker/README.md).
 
+## Deploiement GitHub Pages
+
+Le projet est configure pour etre deploie automatiquement sur GitHub Pages via GitHub Actions :
+
+1. Dans les parametres du depot GitHub : **Settings** > **Pages**.
+2. Sous **Build and deployment** > **Source**, selectionner **GitHub Actions**.
+3. A chaque `git push` sur la branche `main`, le workflow `.github/workflows/deploy-pages.yml` compile automatiquement le site statique (`npm run build:pages`) et le publie sur GitHub Pages.
+
 ## Validation
 
 ```powershell
 npm run lint
 npx tsc --noEmit --incremental false
+npm run build:pages
 npm run build
 npx wrangler deploy --config .\worker\wrangler.jsonc --dry-run
 ```
+
