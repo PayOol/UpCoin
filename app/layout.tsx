@@ -23,7 +23,7 @@ const installPromptCaptureScript = `
 `;
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || "";
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://payool.github.io/UpCoin";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://upcoin.click";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
