@@ -22,12 +22,14 @@ const installPromptCaptureScript = `
   });
 `;
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || "";
+
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://payool.github.io/UpCoin"),
   title: "UpCoin",
   description: "Achetez directement vos pièces TikTok avec Mobile Money sur UpCoin.",
   applicationName: "UpCoin",
-  manifest: "/manifest.webmanifest",
+  manifest: `${basePath}/manifest.webmanifest`,
   appleWebApp: {
     capable: true,
     title: "UpCoin",
@@ -41,11 +43,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/pwa-512x512.png", sizes: "512x512", type: "image/png" },
+      { url: `${basePath}/favicon.png`, type: "image/png" },
+      { url: `${basePath}/pwa-192x192.png`, sizes: "192x192", type: "image/png" },
+      { url: `${basePath}/pwa-512x512.png`, sizes: "512x512", type: "image/png" },
     ],
-    shortcut: "/pwa-192x192.png",
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: `${basePath}/favicon.png`,
+    apple: [{ url: `${basePath}/apple-touch-icon.png`, sizes: "180x180", type: "image/png" }],
   },
   openGraph: {
     title: "UpCoin",

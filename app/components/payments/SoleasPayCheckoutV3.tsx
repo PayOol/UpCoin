@@ -9,6 +9,7 @@ import {
   type PendingPaymentCheckout,
 } from "@/app/lib/payments/payment-contract";
 import { rememberPendingPayment } from "@/app/lib/payments/payment-history";
+import { getAssetPath } from "@/app/lib/asset-path";
 import {
   type SoleasPayLanguage,
 } from "@/app/lib/payments/soleaspay-contract";
@@ -51,8 +52,8 @@ export function SoleasPayCheckoutV3({
     () => "",
   );
 
-  const successUrl = origin ? `${origin}/payment/success` : "";
-  const failureUrl = origin ? `${origin}/payment/failed` : "";
+  const successUrl = origin ? `${origin}${getAssetPath("/payment/success")}` : "";
+  const failureUrl = origin ? `${origin}${getAssetPath("/payment/failed")}` : "";
   const customerName = `${username} | ${whatsapp}`;
 
   function rememberPendingCheckout(): void {

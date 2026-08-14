@@ -1,11 +1,14 @@
-const CACHE_NAME = "upcoin-pwa-v3";
+const CACHE_NAME = "upcoin-pwa-v4";
+const basePath = self.location.pathname.replace(/\/service-worker\.js$/, "");
 const APP_SHELL = [
-  "/",
-  "/manifest.webmanifest",
-  "/pwa-192x192.png",
-  "/pwa-512x512.png",
-  "/pwa-512x512-maskable.png",
-  "/apple-touch-icon.png",
+  `${basePath}/`,
+  `${basePath}/manifest.webmanifest`,
+  `${basePath}/pwa-192x192.png`,
+  `${basePath}/pwa-512x512.png`,
+  `${basePath}/pwa-512x512-maskable.png`,
+  `${basePath}/apple-touch-icon.png`,
+  `${basePath}/favicon.png`,
+  `${basePath}/logo.png`,
 ];
 
 function cacheResponse(request, response) {
@@ -43,15 +46,15 @@ self.addEventListener("fetch", (event) => {
   const requestUrl = new URL(event.request.url);
 
   if (event.request.method !== "GET" || requestUrl.origin !== self.location.origin) return;
-  if (requestUrl.pathname.startsWith("/payment/")) return;
+  if (requestUrl.pathname.startsWith(`${basePath}/payment/`)) return;
 
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request)
-        .then((response) => requestUrl.pathname === "/" ? cacheResponse(event.request, response) : response)
+        .then((response) => (requestUrl.pathname === `${basePath}/` || requestUrl.pathname === `${basePath}`) ? cacheResponse(event.request, response) : response)
         .catch(async () => {
           const cachedPage = await caches.match(event.request);
-          const appShell = await caches.match("/");
+          const appShell = await caches.match(`${basePath}/`);
           return cachedPage || appShell || Response.error();
         }),
     );

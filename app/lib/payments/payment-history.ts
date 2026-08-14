@@ -1,3 +1,4 @@
+import { getAssetPath } from "@/app/lib/asset-path";
 import type {
   PaymentOutcome,
   PaymentProvider,
@@ -290,8 +291,8 @@ export function paymentHistoryEntryToCheckout(
 export function paymentHistoryHref(entry: PaymentHistoryEntry): string | null {
   const order = encodeURIComponent(entry.orderId);
   const provider = encodeURIComponent(entry.provider);
-  if (entry.status === "success") return `/payment/success?provider=${provider}&order=${order}`;
-  if (entry.status === "failure") return `/payment/failed?provider=${provider}&order=${order}`;
-  if (entry.provider === "sebpay") return `/payment/success?provider=${provider}&order=${order}`;
+  if (entry.status === "success") return getAssetPath(`/payment/success?provider=${provider}&order=${order}`);
+  if (entry.status === "failure") return getAssetPath(`/payment/failed?provider=${provider}&order=${order}`);
+  if (entry.provider === "sebpay") return getAssetPath(`/payment/success?provider=${provider}&order=${order}`);
   return null;
 }

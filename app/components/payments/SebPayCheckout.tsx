@@ -11,6 +11,7 @@ import {
   type PendingPaymentCheckout,
 } from "@/app/lib/payments/payment-contract";
 import { rememberPendingPayment } from "@/app/lib/payments/payment-history";
+import { getAssetPath } from "@/app/lib/asset-path";
 import {
   createSebPayCollection,
   getSebPayCountries,
@@ -222,7 +223,7 @@ export function SebPayCheckout({
       order_id: orderId,
       transaction_reference: payment.transactionId,
     });
-    const path = succeeded ? "/payment/success" : "/payment/failed";
+    const path = getAssetPath(succeeded ? "/payment/success" : "/payment/failed");
     window.location.assign(
       `${path}?provider=sebpay&order=${encodeURIComponent(orderId)}` +
       `&payment_data=${encodeURIComponent(paymentData)}`,

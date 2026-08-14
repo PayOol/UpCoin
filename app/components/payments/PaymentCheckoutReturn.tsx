@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { getAssetPath } from "@/app/lib/asset-path";
 import {
   LEGACY_PAYMENT_PENDING_CHECKOUT_KEYS,
   PAYMENT_PENDING_CHECKOUT_KEY,
@@ -611,7 +612,7 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
     <main className="payment-return-page" data-theme={theme}>
       <header className="payment-return-header">
         <Link className="payment-return-brand" href="/" aria-label={t.brandLabel}>
-          <Image src="/logo.png" alt="UpCoin" width={34} height={34} priority />
+          <Image src={getAssetPath("/logo.png")} alt="UpCoin" width={34} height={34} priority />
           <span className="brand-title" aria-hidden="true">
             <span className="brand-p">p</span>
             <span className="brand-coin">Coin</span>

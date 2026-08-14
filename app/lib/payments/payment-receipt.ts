@@ -1,3 +1,4 @@
+import { getAssetPath } from "@/app/lib/asset-path";
 import type { PaymentLanguage } from "@/app/lib/payments/payment-contract";
 
 export type PaymentReceiptData = {
@@ -97,8 +98,8 @@ async function fetchOptimizedPng(path: string, size: number): Promise<Uint8Array
 
 export async function loadPaymentReceiptBrandAssets(): Promise<PaymentReceiptBrandAssets> {
   const [mark, wordmark] = await Promise.all([
-    fetchOptimizedPng("/logo.png", 512),
-    fetchBrandAsset("/upcoin-text.png"),
+    fetchOptimizedPng(getAssetPath("/logo.png"), 512),
+    fetchBrandAsset(getAssetPath("/upcoin-text.png")),
   ]);
 
   return { mark, wordmark };

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Download, MonitorDown, Plus, Share, Smartphone } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { getAssetPath } from "@/app/lib/asset-path";
 
 type Platform = "ios" | "android" | "desktop" | "other";
 type Language = "fr" | "en";
@@ -292,7 +293,7 @@ export function PwaInstallPrompt() {
         <div className="pwa-install-heading">
           <Image
             className="pwa-install-app-icon"
-            src="/pwa-192x192.png"
+            src={getAssetPath("/pwa-192x192.png")}
             alt=""
             width={56}
             height={56}

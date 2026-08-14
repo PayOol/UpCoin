@@ -31,6 +31,7 @@ import { FaWhatsapp } from "react-icons/fa";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { SebPayCheckout } from "@/app/components/payments/SebPayCheckout";
 import { SoleasPayCheckoutV3 } from "@/app/components/payments/SoleasPayCheckoutV3";
+import { getAssetPath } from "@/app/lib/asset-path";
 import { packs, type Pack } from "@/app/lib/catalog";
 import type { PaymentProvider } from "@/app/lib/payments/payment-contract";
 import {
@@ -394,7 +395,7 @@ export default function Home() {
             {sideNavOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
           <a className="store-brand" href="#packs" aria-label={t.brandLabel}>
-            <Image src="/logo.png" alt="UpCoin" width={34} height={34} priority />
+            <Image src={getAssetPath("/logo.png")} alt="UpCoin" width={34} height={34} priority />
             <span className="brand-title" aria-hidden="true">
               <span className="brand-p">p</span>
               <span className="brand-coin">Coin</span>
