@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { ExternalLink, LoaderCircle, ShieldCheck } from "lucide-react";
 import {
   PAYMENT_EMAIL_DATA_KEY,
@@ -13,9 +13,11 @@ import {
 import { rememberPendingPayment } from "@/app/lib/payments/payment-history";
 import {
   createSebPayCollection,
+  getSebPayCountries,
   getSebPayCollection,
   SebPayClientError,
   type SebPayCollection,
+  type SebPayCountry,
 } from "@/app/lib/payments/sebpay-contract";
 
 type SebPayCheckoutProps = {
@@ -30,107 +32,6 @@ type SebPayCheckoutProps = {
   dialCode?: string;
 };
 
-type CountryOption = {
-  code: string;
-  name: string;
-  prefix: string;
-  currency: string;
-};
-
-type OperatorOption = {
-  code: string;
-  name: string;
-};
-
-const countries: CountryOption[] = [
-  { code: "BJ", name: "B\u00e9nin", prefix: "229", currency: "XOF" },
-  { code: "BF", name: "Burkina Faso", prefix: "226", currency: "XOF" },
-  { code: "CM", name: "Cameroun", prefix: "237", currency: "XAF" },
-  { code: "CG", name: "Congo", prefix: "242", currency: "XAF" },
-  { code: "CI", name: "C\u00f4te d'Ivoire", prefix: "225", currency: "XOF" },
-  { code: "GA", name: "Gabon", prefix: "241", currency: "XAF" },
-  { code: "GM", name: "Gambie", prefix: "220", currency: "GMD" },
-  { code: "GN", name: "Guin\u00e9e", prefix: "224", currency: "GNF" },
-  { code: "GW", name: "Guin\u00e9e-Bissau", prefix: "245", currency: "XOF" },
-  { code: "ML", name: "Mali", prefix: "223", currency: "XOF" },
-  { code: "NE", name: "Niger", prefix: "227", currency: "XOF" },
-  { code: "CD", name: "R.D. Congo", prefix: "243", currency: "CDF" },
-  { code: "SN", name: "S\u00e9n\u00e9gal", prefix: "221", currency: "XOF" },
-  { code: "TG", name: "Togo", prefix: "228", currency: "XOF" },
-];
-
-const operatorsByCountry: Record<string, OperatorOption[]> = {
-  BJ: [
-    { code: "celtiis", name: "Celtiis Money" },
-    { code: "coris", name: "Coris Money" },
-    { code: "moov", name: "Moov Money" },
-    { code: "mtn", name: "MTN Money" },
-  ],
-  BF: [
-    { code: "moov", name: "Moov Money" },
-    { code: "orange", name: "Orange Money" },
-    { code: "wligdicash", name: "Wallet LigdiCash" },
-  ],
-  CD: [
-    { code: "afrimoney", name: "Afri Money" },
-    { code: "airtel", name: "Airtel Money" },
-    { code: "mpesa", name: "M-Pesa" },
-    { code: "orange", name: "Orange Money" },
-    { code: "vodacom", name: "Vodacom" },
-  ],
-  CG: [{ code: "mtn", name: "MTN Money" }],
-  CI: [
-    { code: "moov", name: "Moov Money" },
-    { code: "mtn", name: "MTN Money" },
-    { code: "orange", name: "Orange Money" },
-    { code: "wave", name: "Wave" },
-  ],
-  CM: [
-    { code: "mtn", name: "MTN Money" },
-    { code: "orange", name: "Orange Money" },
-  ],
-  GA: [
-    { code: "airtel", name: "Airtel Money" },
-    { code: "moov", name: "Moov Money" },
-  ],
-  GM: [{ code: "afrimoney", name: "Afri Money" }],
-  GN: [
-    { code: "mtn", name: "MTN Money" },
-    { code: "orange", name: "Orange Money" },
-  ],
-  GW: [{ code: "orange", name: "Orange Money" }],
-  ML: [
-    { code: "moov", name: "Moov Money" },
-    { code: "orange", name: "Orange Money" },
-  ],
-  NE: [
-    { code: "airtel", name: "Airtel Money" },
-    { code: "amanata", name: "Amanata" },
-    { code: "moov", name: "Moov Money" },
-    { code: "nita", name: "Nita" },
-    { code: "wligdicash", name: "Wallet LigdiCash" },
-    { code: "zamani", name: "Zamani" },
-  ],
-  SN: [
-    { code: "emoney", name: "E-Money" },
-    { code: "free", name: "Free Money" },
-    { code: "orange", name: "Orange Money" },
-    { code: "wave", name: "Wave" },
-  ],
-  TG: [
-    { code: "moov", name: "Moov Money" },
-    { code: "tmoney", name: "T-Money" },
-  ],
-};
-
-const exchangeRatesFromXaf: Record<string, number> = {
-  XAF: 1,
-  XOF: 1,
-  GNF: 15.45561981,
-  CDF: 4.09206288,
-  GMD: 0.12965094,
-};
-
 const copy = {
   fr: {
     title: "Informations Mobile Money",
@@ -139,13 +40,17 @@ const copy = {
     phone: "Num\u00e9ro Mobile Money",
     phoneHint: "Format international, sans le signe +",
     otp: "Code OTP",
-    otpHint: "Optionnel selon l'op\u00e9rateur",
+    otpInstruction: "Composez {code} sur votre t\u00e9l\u00e9phone pour obtenir le code OTP.",
+    openProvider: "Ouvrir la page de validation de l'op\u00e9rateur",
     pay: "Payer avec SebPay",
     submitting: "Paiement en cours\u2026 Consultez votre t\u00e9l\u00e9phone.",
     secure: "Les cl\u00e9s SebPay restent prot\u00e9g\u00e9es dans le Worker Cloudflare.",
+    loadingCatalog: "Chargement des pays et op\u00e9rateurs SebPay\u2026",
+    catalogUnavailable: "Le catalogue SebPay est momentan\u00e9ment indisponible.",
+    retry: "R\u00e9essayer",
     invalidPhone: "Saisissez un num\u00e9ro international valide (8 \u00e0 15 chiffres).",
     invalidEmail: "Saisissez une adresse e-mail valide.",
-    invalidOtp: "Le code OTP doit contenir entre 4 et 12 chiffres.",
+    invalidOtp: "Saisissez le code OTP requis.",
     pending: "Le paiement est toujours en attente. V\u00e9rifiez votre t\u00e9l\u00e9phone puis r\u00e9essayez.",
   },
   en: {
@@ -155,13 +60,17 @@ const copy = {
     phone: "Mobile Money number",
     phoneHint: "International format, without the + sign",
     otp: "OTP code",
-    otpHint: "Optional depending on the operator",
+    otpInstruction: "Dial {code} on your phone to get the OTP code.",
+    openProvider: "Open the operator validation page",
     pay: "Pay with SebPay",
     submitting: "Payment in progress\u2026 Check your phone.",
     secure: "SebPay keys remain protected inside the Cloudflare Worker.",
+    loadingCatalog: "Loading SebPay countries and operators\u2026",
+    catalogUnavailable: "The SebPay catalog is temporarily unavailable.",
+    retry: "Retry",
     invalidPhone: "Enter a valid international number (8 to 15 digits).",
     invalidEmail: "Enter a valid email address.",
-    invalidOtp: "The OTP must contain between 4 and 12 digits.",
+    invalidOtp: "Enter the required OTP code.",
     pending: "The payment is still pending. Check your phone, then try again.",
   },
 } as const;
@@ -174,23 +83,26 @@ function digitsOnly(value: string, maximumLength = 15): string {
   return value.replace(/\D/g, "").slice(0, maximumLength);
 }
 
-function countryFromDialCode(dialCode?: string): CountryOption {
+function countryFromDialCode(
+  countries: SebPayCountry[],
+  dialCode?: string,
+): SebPayCountry {
   const prefix = digitsOnly(dialCode ?? "");
   return countries.find((country) => country.prefix === prefix) ??
-    countries.find((country) => country.code === "CM")!;
+    countries.find((country) => country.code === "CM") ??
+    countries[0];
 }
 
-function initialLocalPhone(whatsapp?: string, country?: CountryOption): string {
+function initialLocalPhone(whatsapp?: string, country?: SebPayCountry): string {
   const digits = digitsOnly(whatsapp ?? "");
   return country && digits.startsWith(country.prefix)
     ? digits.slice(country.prefix.length)
     : digits.replace(/^0+/, "");
 }
 
-function convertAmount(amount: number, currency: string): number {
-  const exchangeRate = exchangeRatesFromXaf[currency] ?? 1;
+function convertAmount(amount: number, currency: string, exchangeRate: number): number {
   const exchangeFee = currency === "XAF" || currency === "XOF" ? 0 : 30;
-  return Math.ceil((amount + exchangeFee) * exchangeRate);
+  return Math.ceil((amount + exchangeFee) / exchangeRate);
 }
 
 function wait(milliseconds: number): Promise<void> {
@@ -209,21 +121,63 @@ export function SebPayCheckout({
   dialCode,
 }: SebPayCheckoutProps) {
   const t = copy[language];
-  const initialCountry = countryFromDialCode(dialCode);
-  const [countryCode, setCountryCode] = useState(initialCountry.code);
-  const [operator, setOperator] = useState(
-    operatorsByCountry[initialCountry.code]?.[0]?.code ?? "",
-  );
-  const [phone, setPhone] = useState(() => initialLocalPhone(whatsapp, initialCountry));
+  const [countries, setCountries] = useState<SebPayCountry[]>([]);
+  const [countryCode, setCountryCode] = useState("");
+  const [operator, setOperator] = useState("");
+  const [phone, setPhone] = useState("");
   const [otpCode, setOtpCode] = useState("");
+  const [providerLink, setProviderLink] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [catalogError, setCatalogError] = useState<{ message: string | null } | null>(null);
+  const [isCatalogLoading, setIsCatalogLoading] = useState(true);
+  const [catalogRevision, setCatalogRevision] = useState(0);
+
+  useEffect(() => {
+    let ignore = false;
+
+    void getSebPayCountries()
+      .then((availableCountries) => {
+        if (ignore) return;
+        const initialCountry = countryFromDialCode(availableCountries, dialCode);
+        setCountries(availableCountries);
+        setCountryCode(initialCountry.code);
+        setOperator(initialCountry.operators[0]?.code ?? "");
+        setPhone(initialLocalPhone(whatsapp, initialCountry));
+        setOtpCode("");
+        setCatalogError(null);
+      })
+      .catch((catalogLoadError: unknown) => {
+        if (ignore) return;
+        setCatalogError({
+          message: catalogLoadError instanceof SebPayClientError
+            ? catalogLoadError.message
+            : null,
+        });
+      })
+      .finally(() => {
+        if (!ignore) setIsCatalogLoading(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [catalogRevision, dialCode, whatsapp]);
+
   const selectedCountry = useMemo(
-    () => countries.find((country) => country.code === countryCode) ?? initialCountry,
-    [countryCode, initialCountry],
+    () => countries.find((country) => country.code === countryCode) ?? null,
+    [countries, countryCode],
   );
-  const availableOperators = operatorsByCountry[selectedCountry.code] ?? [];
-  const paymentAmount = convertAmount(amount, selectedCountry.currency);
+  const availableOperators = selectedCountry?.operators ?? [];
+  const selectedOperator = availableOperators.find(
+    (candidate) => candidate.code === operator,
+  ) ?? null;
+  const paymentAmount = selectedCountry
+    ? convertAmount(amount, selectedCountry.currency, selectedCountry.exchangeRate)
+    : amount;
+  const otpUssdCode = selectedOperator?.otpRequired && selectedOperator.ussdCode
+    ? selectedOperator.ussdCode.replace(/montant/gi, String(paymentAmount))
+    : null;
 
   function rememberPendingCheckout(payment: SebPayCollection): void {
     const pendingCheckout: PendingPaymentCheckout = {
@@ -289,7 +243,7 @@ export function SebPayCheckout({
 
   async function submitPayment(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || !selectedCountry || !selectedOperator) return;
 
     const localPhone = digitsOnly(phone);
     const normalizedPhone = localPhone.startsWith(selectedCountry.prefix)
@@ -303,32 +257,33 @@ export function SebPayCheckout({
       setError(t.invalidEmail);
       return;
     }
-    if (otpCode && !/^\d{4,12}$/.test(otpCode)) {
+    if (selectedOperator.otpRequired && !otpCode.trim()) {
       setError(t.invalidOtp);
-      return;
-    }
-    if (!availableOperators.some((candidate) => candidate.code === operator)) {
-      setError(t.operator);
       return;
     }
 
     setIsSubmitting(true);
     setError(null);
+    setProviderLink(null);
     try {
       const payment = await createSebPayCollection({
         amount: paymentAmount,
         currency: selectedCountry.currency,
         phone: normalizedPhone,
-        operator,
+        operator: selectedOperator.code,
         country: selectedCountry.code,
         external_reference: orderId,
-        callback_url: `${window.location.origin}/payment/success?provider=sebpay&order=${encodeURIComponent(orderId)}`,
-        ...(otpCode ? { otp_code: otpCode } : {}),
+        ...(selectedOperator.otpRequired ? { otp_code: otpCode.trim() } : {}),
       });
 
       rememberPendingCheckout(payment);
       if (payment.providerLink) {
-        window.open(payment.providerLink, "_blank", "noopener,noreferrer");
+        const providerWindow = window.open(
+          payment.providerLink,
+          "_blank",
+          "noopener,noreferrer",
+        );
+        if (!providerWindow) setProviderLink(payment.providerLink);
       }
       if (payment.status !== "pending") {
         finishPayment(payment);
@@ -343,6 +298,33 @@ export function SebPayCheckout({
       );
       setIsSubmitting(false);
     }
+  }
+
+  if (isCatalogLoading || catalogError || !selectedCountry) {
+    return (
+      <div className="sebpay-catalog-state" role={catalogError ? "alert" : "status"}>
+        {isCatalogLoading ? (
+          <>
+            <LoaderCircle className="sebpay-spinner" aria-hidden="true" />
+            <span>{t.loadingCatalog}</span>
+          </>
+        ) : (
+          <>
+            <span>{catalogError?.message ?? t.catalogUnavailable}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setIsCatalogLoading(true);
+                setCatalogError(null);
+                setCatalogRevision((revision) => revision + 1);
+              }}
+            >
+              {t.retry}
+            </button>
+          </>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -360,8 +342,12 @@ export function SebPayCheckout({
               value={countryCode}
               onChange={(event) => {
                 const nextCountryCode = event.target.value;
+                const nextCountry = countries.find(
+                  (country) => country.code === nextCountryCode,
+                );
                 setCountryCode(nextCountryCode);
-                setOperator(operatorsByCountry[nextCountryCode]?.[0]?.code ?? "");
+                setOperator(nextCountry?.operators[0]?.code ?? "");
+                setPhone("");
                 setOtpCode("");
                 setError(null);
               }}
@@ -369,7 +355,7 @@ export function SebPayCheckout({
               required
             >
               {countries.map((country) => (
-                <option value={country.code} key={country.code}>
+                <option value={country.code} key={country.id}>
                   {country.name}
                 </option>
               ))}
@@ -391,7 +377,7 @@ export function SebPayCheckout({
               required
             >
               {availableOperators.map((candidate) => (
-                <option value={candidate.code} key={candidate.code}>
+                <option value={candidate.code} key={candidate.id}>
                   {candidate.name}
                 </option>
               ))}
@@ -422,26 +408,45 @@ export function SebPayCheckout({
         <small className="sebpay-field-help">{t.phoneHint}</small>
       </label>
 
-      <label className="field-label">
-        <span>{t.otp} <span className="optional">({t.otpHint})</span></span>
-        <div className="field">
-          <input
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]{4,12}"
-            value={otpCode}
-            onChange={(event) => {
-              setOtpCode(digitsOnly(event.target.value, 12));
-              setError(null);
-            }}
-            placeholder="123456"
-            autoComplete="one-time-code"
-            disabled={isSubmitting}
-          />
-        </div>
-      </label>
+      {selectedOperator?.otpRequired && (
+        <label className="field-label">
+          <span>{t.otp} <span className="required">*</span></span>
+          {otpUssdCode && (
+            <small className="sebpay-otp-instruction">
+              {t.otpInstruction.replace("{code}", otpUssdCode)}
+            </small>
+          )}
+          <div className="field">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={otpCode}
+              onChange={(event) => {
+                setOtpCode(event.target.value.slice(0, 64));
+                setError(null);
+              }}
+              placeholder="123456"
+              maxLength={64}
+              autoComplete="one-time-code"
+              disabled={isSubmitting}
+              required
+            />
+          </div>
+        </label>
+      )}
 
       {error && <p className="sebpay-checkout-error" role="alert">{error}</p>}
+
+      {providerLink && (
+        <a
+          className="sebpay-provider-link"
+          href={providerLink}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <ExternalLink size={15} aria-hidden="true" /> {t.openProvider}
+        </a>
+      )}
 
       <p className="sebpay-security-note">
         <ShieldCheck size={15} aria-hidden="true" /> {t.secure}
@@ -449,7 +454,7 @@ export function SebPayCheckout({
       <button
         className="soleaspay-checkout-submit sebpay-checkout-submit"
         type="submit"
-        disabled={isSubmitting || !EMAIL_PATTERN.test(email) || availableOperators.length === 0}
+        disabled={isSubmitting || !EMAIL_PATTERN.test(email) || !selectedOperator}
         aria-busy={isSubmitting}
       >
         {isSubmitting

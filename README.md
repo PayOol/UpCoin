@@ -16,8 +16,10 @@ PayOol. Aucune cle SebPay n'est incluse dans le frontend.
 
 SebPay passe par le proxy minimal situe dans `worker/sebpay-proxy.js`. Le
 navigateur affiche une etape 4 pour le pays, l'operateur, le numero Mobile Money
-et l'OTP, envoie ensuite la collection au proxy, puis verifie son statut toutes
-les 5 secondes avec `GET /collections/:id`.
+et, uniquement si l'operateur l'exige, le code USSD et l'OTP. Les pays, devises,
+services PayIn et operateurs sont charges depuis le catalogue SebPay en temps
+reel. Le navigateur envoie ensuite la collection au proxy, puis verifie son
+statut toutes les 5 secondes avec `GET /collections/:id`.
 
 Configurer les deux secrets une seule fois :
 
@@ -27,7 +29,11 @@ npx wrangler secret put SEBPAY_PUBLIC_KEY --config .\wrangler.jsonc
 npx wrangler secret put SEBPAY_SECRET_KEY --config .\wrangler.jsonc
 ```
 
-Deployer ensuite le proxy :
+Si SebPay limite ces cles a une adresse IP, cette restriction doit aussi
+autoriser les requetes sortantes du Worker. Une reponse `IP_NOT_ALLOWED` bloque
+les collectes meme lorsque les deux secrets sont correctement configures.
+
+Depuis la racine du depot, deployer ensuite le proxy :
 
 ```powershell
 npm run deploy:payments
