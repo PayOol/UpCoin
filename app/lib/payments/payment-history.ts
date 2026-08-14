@@ -28,7 +28,6 @@ type FinalizePaymentOptions = {
   transactionReference?: string | null;
   providerStatus?: string | null;
   confirmed?: boolean;
-  authoritative?: boolean;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -224,21 +223,20 @@ export function finalizePaymentHistory(
   if (
     existing &&
     existing.status !== "pending" &&
-    existing.status !== outcome &&
-    options.authoritative !== true
+    existing.status !== outcome
   ) {
     return existing;
   }
 
   if (existing && existing.status === outcome) {
     const updatedEntry: PaymentHistoryEntry = {
-      ...(options.authoritative === true ? { ...existing, ...checkout } : existing),
-      transactionReference: existing.transactionReference ?? cleanOptionalString(
-        options.transactionReference,
+      ...existing,
+      transactionReference: cleanOptionalString(
+        existing.transactionReference ?? options.transactionReference,
         MAX_REFERENCE_LENGTH,
       ),
-      providerStatus: existing.providerStatus ?? cleanOptionalString(
-        options.providerStatus,
+      providerStatus: cleanOptionalString(
+        existing.providerStatus ?? options.providerStatus,
         MAX_PROVIDER_STATUS_LENGTH,
       ),
       confirmed: existing.confirmed || (outcome === "success" && options.confirmed === true),

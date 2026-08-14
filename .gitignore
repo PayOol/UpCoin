@@ -31,6 +31,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+worker/.dev.vars*
+!worker/.dev.vars.example
 
 # vercel
 .vercel

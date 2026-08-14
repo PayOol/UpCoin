@@ -53,10 +53,6 @@ import {
   safeReceiptFilename,
 } from "@/app/lib/payments/payment-receipt";
 import { sendOrderEmail } from "@/app/lib/payments/send-order-email";
-import {
-  fetchSebPayPayment,
-  type SebPayPayment,
-} from "@/app/lib/payments/sebpay-contract";
 
 type Theme = "light" | "dark";
 type ReturnPhase = "loading" | "received" | "missing" | "invalid";
@@ -387,128 +383,6 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
-    if (searchParams.get("provider") !== "sebpay") return;
-
-    const requestedOrderId = searchParams.get("order")?.trim() ?? "";
-    const sessionCheckout = readPendingCheckout();
-    const historyEntry = requestedOrderId
-      ? findPaymentHistoryEntry(requestedOrderId)
-      : null;
-    const checkout = sessionCheckout?.provider === "sebpay" &&
-      sessionCheckout.orderId === requestedOrderId
-      ? sessionCheckout
-      : historyEntry?.provider === "sebpay"
-        ? paymentHistoryEntryToCheckout(historyEntry)
-        : null;
-
-    if (!requestedOrderId || !checkout) {
-      window.queueMicrotask(() => setReturnState({
-        phase: "missing",
-        paymentReturn: null,
-        pendingCheckout: null,
-        resolvedOutcome: null,
-        confirmed: false,
-      }));
-      return;
-    }
-
-    let cancelled = false;
-    let pollTimer: number | undefined;
-    let pollCount = 0;
-    const maximumPolls = 30;
-
-    const commitPending = (payment?: SebPayPayment) => {
-      const authoritativeCheckout: PendingPaymentCheckout = payment
-        ? {
-            ...checkout,
-            coins: payment.coins,
-            amount: payment.amount,
-            currency: payment.currency,
-          }
-        : checkout;
-      const pendingEntry = rememberPendingPayment(authoritativeCheckout, {
-        transactionReference: payment?.transactionId,
-        providerStatus: payment?.providerStatus ?? payment?.status ?? "pending",
-      });
-      canonicalizePendingEntry(pendingEntry);
-      setReturnState({
-        phase: "received",
-        paymentReturn: {
-          reference: payment?.transactionId ?? null,
-          status: payment?.providerStatus ?? payment?.status ?? "pending",
-          successful: null,
-          orderId: checkout.orderId,
-        },
-        pendingCheckout: authoritativeCheckout,
-        resolvedOutcome: null,
-        confirmed: false,
-      });
-    };
-
-    const reconcile = async (): Promise<void> => {
-      try {
-        const payment = await fetchSebPayPayment(requestedOrderId);
-        if (cancelled) return;
-
-        if (payment.status === "pending") {
-          commitPending(payment);
-          pollCount += 1;
-          if (pollCount < maximumPolls) {
-            pollTimer = window.setTimeout(() => void reconcile(), 4_000);
-          }
-          return;
-        }
-
-        const resolvedOutcome: PaymentOutcome = payment.status === "approved"
-          ? "success"
-          : "failure";
-        const authoritativeCheckout: PendingPaymentCheckout = {
-          ...checkout,
-          coins: payment.coins,
-          amount: payment.amount,
-          currency: payment.currency,
-        };
-        const finalizedEntry = finalizePaymentHistory(authoritativeCheckout, resolvedOutcome, {
-          transactionReference: payment.transactionId,
-          providerStatus: payment.providerStatus ?? payment.status,
-          confirmed: payment.status === "approved",
-          authoritative: true,
-        });
-        const paymentReturn = paymentReturnFromHistory(finalizedEntry);
-        storeSnapshot({
-          version: 1,
-          outcome: resolvedOutcome,
-          paymentReturn,
-          pendingCheckout: authoritativeCheckout,
-        });
-        removePendingCheckouts();
-        canonicalizeHistoryEntry(finalizedEntry);
-        setReturnState(returnStateFromHistory(finalizedEntry));
-      } catch {
-        if (cancelled) return;
-        commitPending();
-        pollCount += 1;
-        if (pollCount < maximumPolls) {
-          pollTimer = window.setTimeout(() => void reconcile(), 6_000);
-        }
-      }
-    };
-
-    window.queueMicrotask(() => {
-      if (cancelled) return;
-      commitPending();
-      void reconcile();
-    });
-
-    return () => {
-      cancelled = true;
-      if (pollTimer !== undefined) window.clearTimeout(pollTimer);
-    };
-  }, [outcome]);
-
-  useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    if (searchParams.get("provider") === "sebpay") return;
     const rawPaymentData = searchParams.get("payment_data") ?? searchParams.get("soleaspay_data");
     const requestedOrderId = searchParams.get("order")?.trim() ?? "";
     const parsedReturn = parsePaymentReturn(rawPaymentData);

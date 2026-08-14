@@ -132,7 +132,7 @@ const copy = {
     openOrder: "Ouvrir la transaction",
     noOrders: "Aucune commande pour le moment",
     nextOrder: "Vos transactions apparaîtront ici après votre première tentative de paiement.",
-    progress: "Étape {current} sur 3",
+    progress: "Étape {current} sur {total}",
     rechargeInfo: "Informations de recharge",
     tiktokUsername: "Nom d’utilisateur TikTok",
     required: "obligatoire",
@@ -200,7 +200,7 @@ const copy = {
     openOrder: "Open transaction",
     noOrders: "No orders yet",
     nextOrder: "Your transactions will appear here after your first payment attempt.",
-    progress: "Step {current} of 3",
+    progress: "Step {current} of {total}",
     rechargeInfo: "Recharge information",
     tiktokUsername: "TikTok username",
     required: "required",
@@ -237,6 +237,11 @@ const dialCodes: Record<string, string> = {
 
 const localeFor = (language: Language) => language === "fr" ? "fr-FR" : "en-US";
 
+const formatProgress = (template: string, current: number, total: number) =>
+  template
+    .replace("{current}", String(current))
+    .replace("{total}", String(total));
+
 const formatNumber = (value: number, language: Language) =>
   new Intl.NumberFormat(localeFor(language), { maximumFractionDigits: 2 }).format(value);
 
@@ -262,7 +267,7 @@ export default function Home() {
   const [selectedPack, setSelectedPack] = useState<Pack>(packs[2]);
   const [customCoins, setCustomCoins] = useState(0);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [instructionsAccepted, setInstructionsAccepted] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -296,18 +301,6 @@ export default function Home() {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
   }, [theme]);
-
-  useEffect(() => {
-    try {
-      const sebPayReturnUrl = window.sessionStorage.getItem("upcoin-sebpay-return-url");
-      if (sebPayReturnUrl?.startsWith("/payment/")) {
-        window.sessionStorage.removeItem("upcoin-sebpay-return-url");
-        window.location.replace(sebPayReturnUrl);
-      }
-    } catch {
-      // Payment status remains available from the current browser history.
-    }
-  }, []);
 
   useEffect(() => {
     fetch("https://ipapi.co/json/")
@@ -384,7 +377,8 @@ export default function Home() {
     setStep(3);
   };
 
-  const progressLabel = t.progress.replace("{current}", String(step));
+  const checkoutTotalSteps = paymentProvider === "sebpay" ? 4 : 3;
+  const progressLabel = formatProgress(t.progress, step, checkoutTotalSteps);
 
   return (
     <main className="store-page" data-theme={theme}>
@@ -702,18 +696,16 @@ export default function Home() {
               <X />
             </button>
 
-            {step < 4 && (
-              <div className="checkout-progress" aria-label={progressLabel}>
-                <span className={step >= 1 ? "active" : ""} />
-                <span className={step >= 2 ? "active" : ""} />
-                <span className={step >= 3 ? "active" : ""} />
-              </div>
-            )}
+            <div className="checkout-progress" aria-label={progressLabel}>
+              {Array.from({ length: checkoutTotalSteps }, (_, index) => (
+                <span className={step >= index + 1 ? "active" : ""} key={index} />
+              ))}
+            </div>
 
             {step === 1 && (
               <div className="checkout-step step-instructions">
                 <div className="instructions-header">
-                  <span className="modal-kicker">{t.progress.replace("{current}", "1")}</span>
+                  <span className="modal-kicker">{formatProgress(t.progress, 1, checkoutTotalSteps)}</span>
                   <h2 id="checkout-title">Instructions importantes</h2>
                   <p className="instructions-intro">Veuillez lire attentivement avant de continuer</p>
                 </div>
@@ -768,7 +760,7 @@ export default function Home() {
 
                 <div className="form-header">
                   <div>
-                    <span className="modal-kicker">{t.progress.replace("{current}", "2")}</span>
+                    <span className="modal-kicker">{formatProgress(t.progress, 2, checkoutTotalSteps)}</span>
                     <h2 id="checkout-title">{t.rechargeInfo}</h2>
                   </div>
                   <div className="form-header-pack">
@@ -844,7 +836,7 @@ export default function Home() {
                 <button type="button" className="back-button" onClick={() => setStep(2)}>
                   <ArrowLeft size={15} /> {t.back}
                 </button>
-                <span className="modal-kicker">{t.progress.replace("{current}", "3")}</span>
+                <span className="modal-kicker">{formatProgress(t.progress, 3, checkoutTotalSteps)}</span>
                 <h2 id="checkout-title">{t.confirmOrder}</h2>
 
                 <div className="checkout-summary">
@@ -929,17 +921,39 @@ export default function Home() {
                 )}
 
                 {paymentProvider === "sebpay" && (
-                  <SebPayCheckout
-                    language={language}
-                    packId={selectedPack.id}
-                    customCoins={selectedPack.id === "custom" ? selectedPack.coins : undefined}
-                    username={username}
-                    password={password}
-                    whatsapp={whatsapp}
-                    dialCode={dialCode}
-                    email={email}
-                  />
+                  <button
+                    type="button"
+                    className="modal-primary"
+                    disabled={!EMAIL_PATTERN.test(email) || !paymentOrderId}
+                    onClick={() => setStep(4)}
+                  >
+                    {t.continue} <ArrowRight size={18} />
+                  </button>
                 )}
+              </div>
+            )}
+
+            {step === 4 && paymentProvider === "sebpay" && (
+              <div className="checkout-step step-form">
+                <button type="button" className="back-button" onClick={() => setStep(3)}>
+                  <ArrowLeft size={15} /> {t.back}
+                </button>
+                <span className="modal-kicker">{formatProgress(t.progress, 4, 4)}</span>
+                <h2 id="checkout-title">
+                  {language === "fr" ? "Paiement SebPay" : "SebPay payment"}
+                </h2>
+
+                <SebPayCheckout
+                  language={language}
+                  orderId={paymentOrderId}
+                  amount={selectedPack.price}
+                  coins={deliveredCoins}
+                  username={username}
+                  password={password}
+                  whatsapp={whatsapp}
+                  dialCode={dialCode}
+                  email={email}
+                />
               </div>
             )}
           </section>
