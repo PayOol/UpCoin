@@ -31,6 +31,7 @@ type SebPayCheckoutProps = {
   email: string;
   whatsapp?: string;
   dialCode?: string;
+  countryCode?: string;
 };
 
 const copy = {
@@ -45,7 +46,6 @@ const copy = {
     openProvider: "Ouvrir la page de validation de l'op\u00e9rateur",
     pay: "Payer avec SebPay",
     submitting: "Paiement en cours\u2026 Consultez votre t\u00e9l\u00e9phone.",
-    secure: "Les cl\u00e9s SebPay restent prot\u00e9g\u00e9es dans le Worker Cloudflare.",
     loadingCatalog: "Chargement des pays et op\u00e9rateurs SebPay\u2026",
     catalogUnavailable: "Le catalogue SebPay est momentan\u00e9ment indisponible.",
     retry: "R\u00e9essayer",
@@ -65,7 +65,6 @@ const copy = {
     openProvider: "Open the operator validation page",
     pay: "Pay with SebPay",
     submitting: "Payment in progress\u2026 Check your phone.",
-    secure: "SebPay keys remain protected inside the Cloudflare Worker.",
     loadingCatalog: "Loading SebPay countries and operators\u2026",
     catalogUnavailable: "The SebPay catalog is temporarily unavailable.",
     retry: "Retry",
@@ -87,7 +86,14 @@ function digitsOnly(value: string, maximumLength = 15): string {
 function countryFromDialCode(
   countries: SebPayCountry[],
   dialCode?: string,
+  countryCode?: string,
 ): SebPayCountry {
+  if (countryCode) {
+    const match = countries.find(
+      (c) => c.code.toUpperCase() === countryCode.toUpperCase(),
+    );
+    if (match) return match;
+  }
   const prefix = digitsOnly(dialCode ?? "");
   return countries.find((country) => country.prefix === prefix) ??
     countries.find((country) => country.code === "CM") ??
@@ -120,6 +126,7 @@ export function SebPayCheckout({
   email,
   whatsapp,
   dialCode,
+  countryCode: countryCodeProp,
 }: SebPayCheckoutProps) {
   const t = copy[language];
   const [countries, setCountries] = useState<SebPayCountry[]>([]);
@@ -140,7 +147,7 @@ export function SebPayCheckout({
     void getSebPayCountries()
       .then((availableCountries) => {
         if (ignore) return;
-        const initialCountry = countryFromDialCode(availableCountries, dialCode);
+        const initialCountry = countryFromDialCode(availableCountries, dialCode, countryCodeProp);
         setCountries(availableCountries);
         setCountryCode(initialCountry.code);
         setOperator(initialCountry.operators[0]?.code ?? "");
@@ -163,7 +170,7 @@ export function SebPayCheckout({
     return () => {
       ignore = true;
     };
-  }, [catalogRevision, dialCode, whatsapp]);
+  }, [catalogRevision, countryCodeProp, dialCode, whatsapp]);
 
   const selectedCountry = useMemo(
     () => countries.find((country) => country.code === countryCode) ?? null,
@@ -449,9 +456,6 @@ export function SebPayCheckout({
         </a>
       )}
 
-      <p className="sebpay-security-note">
-        <ShieldCheck size={15} aria-hidden="true" /> {t.secure}
-      </p>
       <button
         className="soleaspay-checkout-submit sebpay-checkout-submit"
         type="submit"

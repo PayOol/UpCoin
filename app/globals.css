@@ -702,6 +702,27 @@ a { color: inherit; text-decoration: none; }
 .field input::placeholder { color: var(--checkout-faint); }
 
 .field-password { padding-right: 6px; }
+.country-phone-field { padding-left: 8px; gap: 8px; }
+.country-select {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--checkout-text);
+  font: inherit;
+  font-weight: 750;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px 6px 4px 2px;
+  border-right: 1px solid var(--checkout-line);
+  margin-right: 2px;
+  max-width: 140px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.country-select option {
+  background: var(--checkout-panel);
+  color: var(--checkout-text);
+}
 .toggle-password { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 8px; background: var(--checkout-surface-hover); color: var(--checkout-muted); cursor: pointer; transition: background .15s, color .15s; }
 .toggle-password:hover { background: var(--checkout-line); color: var(--checkout-text); }
 
@@ -742,35 +763,72 @@ a { color: inherit; text-decoration: none; }
 .payment-provider strong { font-size: 11px; }
 .payment-provider small { color: var(--checkout-muted); font-size: 9px; }
 .payment-provider > svg { color: #66dff3; }
-.payment-logo { width: 37px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 13px; font-weight: 900; }
+.payment-logo-wrap {
+  width: 42px;
+  height: 28px;
+  border-radius: 7px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
+  flex-shrink: 0;
+  box-shadow: 0 1.5px 4px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+.payment-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.payment-logo { width: 34px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-size: 13px; font-weight: 900; flex-shrink: 0; }
 .payment-logo.soleaspay { background: linear-gradient(135deg, #08c8e8, #6354e9 58%, #a941df); color: #fff; box-shadow: 0 7px 16px rgba(84,70,210,.28); }
 .payment-logo.sebpay { background: linear-gradient(135deg, #f58322, #f25b21 60%, #c93d1d); color: #fff; box-shadow: 0 7px 16px rgba(242,91,33,.24); }
 
 .payment-provider-selector { margin-top: 18px; }
-.payment-provider-selector-label { display: block; margin-bottom: 8px; color: var(--checkout-muted-strong); font-size: 9px; font-weight: 750; }
+.payment-provider-selector-label { display: block; margin-bottom: 9px; color: var(--checkout-muted-strong); font-size: 9px; font-weight: 750; }
 .payment-provider-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .payment-provider-option {
+  position: relative;
   min-width: 0;
-  min-height: 64px;
-  padding: 10px;
+  min-height: 52px;
+  padding: 8px 10px;
   border: 1px solid var(--checkout-line);
   border-radius: 12px;
   background: var(--checkout-surface);
   color: var(--checkout-text);
   display: grid;
-  grid-template-columns: 37px minmax(0, 1fr) 15px;
+  grid-template-columns: 42px minmax(0, 1fr) 14px;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   text-align: left;
   cursor: pointer;
   transition: border-color .15s, background .15s, box-shadow .15s, transform .15s;
 }
 .payment-provider-option:hover { transform: translateY(-1px); border-color: rgba(99,85,221,.4); }
 .payment-provider-option.selected { border-color: #6355dd; background: rgba(99,85,221,.07); box-shadow: 0 0 0 2px rgba(99,85,221,.08); }
-.payment-provider-option > span:nth-child(2) { min-width: 0; display: grid; gap: 3px; }
-.payment-provider-option strong { font-size: 10px; }
-.payment-provider-option small { overflow: hidden; color: var(--checkout-muted); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
-.payment-provider-radio { width: 14px; height: 14px; border: 1.5px solid var(--checkout-faint); border-radius: 50%; position: relative; }
+.payment-provider-option strong,
+.payment-provider-option .payment-provider-name { font-size: 11px; font-weight: 750; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.payment-provider-badge {
+  position: absolute;
+  top: -8px;
+  right: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f58322, #f25b21 60%, #c93d1d);
+  color: #fff;
+  font-size: 7.5px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  box-shadow: 0 3px 10px rgba(242,91,33,.38);
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.payment-provider-radio { width: 14px; height: 14px; border: 1.5px solid var(--checkout-faint); border-radius: 50%; position: relative; flex-shrink: 0; }
 .payment-provider-option.selected .payment-provider-radio { border-color: #6355dd; }
 .payment-provider-option.selected .payment-provider-radio::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: #6355dd; }
 
@@ -831,8 +889,13 @@ a { color: inherit; text-decoration: none; }
 .sebpay-spinner { width: 17px; height: 17px; flex: 0 0 auto; animation: soleaspay-checkout-spin .75s linear infinite; }
 
 @media (max-width: 480px) {
-  .payment-provider-options { grid-template-columns: 1fr; }
-  .payment-provider-option { min-height: 58px; }
+  .country-select { max-width: 115px; font-size: 10px; padding-right: 4px; }
+  .payment-provider-options { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .payment-provider-option { min-height: 48px; padding: 6px 7px; gap: 6px; grid-template-columns: 36px minmax(0, 1fr) 13px; }
+  .payment-logo-wrap { width: 36px; height: 24px; border-radius: 6px; padding: 1.5px 3px; }
+  .payment-provider-option strong,
+  .payment-provider-option .payment-provider-name { font-size: 10px; }
+  .payment-provider-badge { top: -7px; right: 4px; padding: 1.5px 5px; font-size: 6.5px; }
   .sebpay-fields-row { grid-template-columns: 1fr; }
 }
 
