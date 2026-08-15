@@ -170,14 +170,16 @@ const copy = {
 
 const localeFor = (language: PaymentLanguage) => language === "fr" ? "fr-FR" : "en-US";
 const PREFERENCE_CHANGE_EVENT = "upcoin-preference-change";
-const subscribeToPreferences = (onStoreChange: () => void) => {
+
+function subscribeToPreferences(onStoreChange: () => void): () => void {
   window.addEventListener("storage", onStoreChange);
   window.addEventListener(PREFERENCE_CHANGE_EVENT, onStoreChange);
+
   return () => {
     window.removeEventListener("storage", onStoreChange);
     window.removeEventListener(PREFERENCE_CHANGE_EVENT, onStoreChange);
   };
-};
+}
 
 function getLanguagePreference(): PaymentLanguage {
   try {
@@ -198,7 +200,7 @@ function getThemePreference(): Theme {
     // Browser preferences are optional on a payment return page.
   }
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return "light";
 }
 
 function readPendingCheckout(): PendingPaymentCheckout | null {

@@ -55,15 +55,12 @@ type Theme = "light" | "dark";
 const PREFERENCE_CHANGE_EVENT = "upcoin-preference-change";
 
 function subscribeToPreferences(onStoreChange: () => void): () => void {
-  const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
   window.addEventListener("storage", onStoreChange);
   window.addEventListener(PREFERENCE_CHANGE_EVENT, onStoreChange);
-  colorScheme.addEventListener("change", onStoreChange);
 
   return () => {
     window.removeEventListener("storage", onStoreChange);
     window.removeEventListener(PREFERENCE_CHANGE_EVENT, onStoreChange);
-    colorScheme.removeEventListener("change", onStoreChange);
   };
 }
 
@@ -76,7 +73,7 @@ function getLanguagePreference(): Language {
 function getThemePreference(): Theme {
   const savedTheme = window.localStorage.getItem("upcoin-theme");
   if (savedTheme === "light" || savedTheme === "dark") return savedTheme;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return "light";
 }
 
 function savePreference(key: "upcoin-language" | "upcoin-theme", value: string): void {
