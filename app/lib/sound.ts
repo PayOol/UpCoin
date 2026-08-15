@@ -419,7 +419,7 @@ export function toggleSound(): boolean {
   return next;
 }
 
-// --- MICRO-VIBRATIONS HAPTIQUES SYNCHRONISÉES ---
+// --- MICRO-VIBRATIONS HAPTIQUES SYNCHRONISÉES (ANDROID & iOS) ---
 
 const HAPTIC_PATTERNS: Record<SoundName, number | number[]> = {
   tap: 12,
@@ -435,17 +435,64 @@ const HAPTIC_PATTERNS: Record<SoundName, number | number[]> = {
   error: [22, 40, 35],
 };
 
+function isIosDevice(): boolean {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
+/**
+ * Impulsion haptique physique sub-basse pour iPhone (52Hz -> 32Hz)
+ * Fait vibrer physiquement le châssis et le moteur acoustique de l'iPhone dans la main.
+ */
+function playIosHapticSubPulse(ctx: AudioContext, strength = 0.45): void {
+  try {
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(52, now);
+    osc.frequency.exponentialRampToValueAtTime(30, now + 0.028);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(strength, now + 0.003);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.028);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.03);
+  } catch {
+    // Fallback silencieux
+  }
+}
+
 function triggerHaptic(name: SoundName): void {
   if (typeof window === "undefined" || typeof navigator === "undefined") return;
-  try {
-    if ("vibrate" in navigator && typeof navigator.vibrate === "function") {
+
+  // 1. Android, Chrome, Opera, etc. (Web Vibration API standard)
+  if ("vibrate" in navigator && typeof navigator.vibrate === "function") {
+    try {
       const pattern = HAPTIC_PATTERNS[name];
       if (pattern !== undefined) {
         navigator.vibrate(pattern);
       }
+    } catch {
+      // Ignorer
     }
-  } catch {
-    // Périphérique sans vibreur (ex: Desktop)
+  }
+
+  // 2. Apple iOS (iPhone / iPad) où Apple bloque navigator.vibrate
+  if (isIosDevice()) {
+    const ctx = getOrCreateAudioContext();
+    if (ctx && ctx.state === "running") {
+      const strength = name === "success" || name === "failure" ? 0.6 : 0.45;
+      playIosHapticSubPulse(ctx, strength);
+    }
   }
 }
 
