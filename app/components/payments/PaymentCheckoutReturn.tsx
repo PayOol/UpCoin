@@ -27,6 +27,7 @@ import {
 import { FaWhatsapp } from "react-icons/fa";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
+  getSoundWavDataUri,
   isSoundEnabled,
   playFailure,
   playSuccess,
@@ -649,6 +650,16 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
 
   return (
     <main className="payment-return-page" data-theme={theme}>
+      {soundEnabled && (
+        <audio
+          key={isSuccess ? "audio-success" : "audio-failure"}
+          src={getSoundWavDataUri(isSuccess ? "success" : "failure")}
+          autoPlay
+          playsInline
+          aria-hidden="true"
+          style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
+        />
+      )}
       <header className="payment-return-header">
         <Link className="payment-return-brand" href="/" aria-label={t.brandLabel}>
           <Image src={getAssetPath("/logo.png")} alt="UpCoin" width={34} height={34} priority />

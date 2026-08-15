@@ -329,7 +329,7 @@ if (typeof window !== "undefined") {
     window.setTimeout(preloadSounds, 10);
   }
 
-  // Déverrouillage automatique et déchargement des sons en attente (autoplay)
+// Déverrouillage automatique et déchargement des sons en attente (autoplay)
   const unlockAndFlush = () => {
     const ctx = getOrCreateAudioContext();
     if (ctx && ctx.state === "suspended") {
@@ -347,11 +347,24 @@ if (typeof window !== "undefined") {
     }
   };
 
-  window.addEventListener("pointerdown", unlockAndFlush, { capture: true, passive: true });
-  window.addEventListener("touchstart", unlockAndFlush, { capture: true, passive: true });
-  window.addEventListener("mousedown", unlockAndFlush, { capture: true, passive: true });
-  window.addEventListener("keydown", unlockAndFlush, { capture: true, passive: true });
-  window.addEventListener("scroll", unlockAndFlush, { capture: true, passive: true });
+  const flushEvents = [
+    "pointermove",
+    "mousemove",
+    "mouseenter",
+    "pointerdown",
+    "touchstart",
+    "touchmove",
+    "mousedown",
+    "keydown",
+    "scroll",
+    "wheel",
+    "focus",
+    "visibilitychange",
+  ];
+
+  for (const eventName of flushEvents) {
+    window.addEventListener(eventName, unlockAndFlush, { capture: true, passive: true });
+  }
 }
 
 export function isSoundEnabled(): boolean {
@@ -467,3 +480,8 @@ export function playFailure(): void {
 export function playError(): void {
   playSound("error", 50);
 }
+
+export function getSoundWavDataUri(name: SoundName): string {
+  return getWavDataUri(name);
+}
+
