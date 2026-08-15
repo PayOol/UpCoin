@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
-import Image from "next/image";
+import { useEffect, useCallback, useRef } from "react";
 import { BASE_PATH, getAssetPath } from "@/app/lib/asset-path";
-import { RefreshCw, X } from "lucide-react";
 
 interface VersionPayload {
   version: string;
@@ -13,25 +11,45 @@ interface VersionPayload {
 }
 
 export function PwaServiceWorker() {
-  const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
   const initialVersionRef = useRef<string | null>(null);
   const refreshingRef = useRef(false);
+  const updatePendingRef = useRef(false);
 
-  const applyUpdate = useCallback(() => {
-    setIsUpdating(true);
+  const isUserBusy = useCallback(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") return false;
+    if (window.location.pathname.includes("/payment/")) return true;
+
+    const activeTag = document.activeElement?.tagName?.toLowerCase();
+    if (activeTag === "input" || activeTag === "textarea" || activeTag === "select") {
+      return true;
+    }
+
+    return false;
+  }, []);
+
+  const triggerSilentUpdate = useCallback(() => {
+    if (refreshingRef.current) return;
+
+    if (isUserBusy()) {
+      // Defer update until user leaves inputs / payment
+      updatePendingRef.current = true;
+      console.log("[PWA] Update detected, deferred while user is active.");
+      return;
+    }
+
+    refreshingRef.current = true;
+    updatePendingRef.current = false;
+    console.log("[PWA] Silently applying latest update...");
 
     if (registrationRef.current?.waiting) {
       registrationRef.current.waiting.postMessage({ action: "skipWaiting" });
     }
 
-    // Give the service worker a split second to activate, then reload
     setTimeout(() => {
       window.location.reload();
-    }, 250);
-  }, []);
+    }, 200);
+  }, [isUserBusy]);
 
   const checkForRemoteUpdate = useCallback(async () => {
     try {
@@ -49,26 +67,24 @@ export function PwaServiceWorker() {
 
       if (initialVersionRef.current !== data.version) {
         console.log(`[PWA] New version detected online: ${data.version} (current: ${initialVersionRef.current})`);
-        setUpdateAvailable(true);
         if (registrationRef.current) {
           void registrationRef.current.update();
         }
+        triggerSilentUpdate();
       }
     } catch {
-      // Offline or network error - ignore silently
+      // Ignore network errors when offline
     }
-  }, []);
+  }, [triggerSilentUpdate]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !window.isSecureContext) return;
 
     let updateInterval: NodeJS.Timeout | null = null;
 
-    // Prevent reload loops on controllerchange
     const onControllerChange = () => {
-      if (refreshingRef.current) return;
       console.log("[PWA] Service worker controller changed.");
-      setUpdateAvailable(true);
+      triggerSilentUpdate();
     };
 
     navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
@@ -76,7 +92,7 @@ export function PwaServiceWorker() {
     const onMessage = (event: MessageEvent) => {
       if (event.data?.type === "SW_ACTIVATED" || event.data?.type === "SW_UPDATED") {
         console.log("[PWA] Service worker updated event received:", event.data);
-        setUpdateAvailable(true);
+        triggerSilentUpdate();
       }
     };
 
@@ -87,7 +103,8 @@ export function PwaServiceWorker() {
 
       // If a new worker is already waiting to activate
       if (registration.waiting) {
-        setUpdateAvailable(true);
+        registration.waiting.postMessage({ action: "skipWaiting" });
+        triggerSilentUpdate();
       }
 
       // Listen for new worker installs
@@ -97,8 +114,9 @@ export function PwaServiceWorker() {
 
         installingWorker.addEventListener("statechange", () => {
           if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
-            console.log("[PWA] New content is available; please refresh.");
-            setUpdateAvailable(true);
+            console.log("[PWA] New version installed in background.");
+            installingWorker.postMessage({ action: "skipWaiting" });
+            triggerSilentUpdate();
           }
         });
       });
@@ -112,7 +130,6 @@ export function PwaServiceWorker() {
       const swUrl = getAssetPath("/service-worker.js");
       const scope = BASE_PATH ? `${BASE_PATH}/` : "/";
 
-      // updateViaCache: 'none' ensures browser always checks the network for service-worker.js
       navigator.serviceWorker
         .register(swUrl, { scope, updateViaCache: "none" })
         .then((registration) => {
@@ -131,17 +148,25 @@ export function PwaServiceWorker() {
 
     // Trigger update checks when returning to the app or reconnecting
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible" && registrationRef.current) {
-        void registrationRef.current.update();
+      if (document.visibilityState === "visible") {
+        if (updatePendingRef.current) {
+          triggerSilentUpdate();
+        }
+        if (registrationRef.current) {
+          void registrationRef.current.update();
+        }
         void checkForRemoteUpdate();
       }
     };
 
     const onFocus = () => {
+      if (updatePendingRef.current) {
+        triggerSilentUpdate();
+      }
       if (registrationRef.current) {
         void registrationRef.current.update();
-        void checkForRemoteUpdate();
       }
+      void checkForRemoteUpdate();
     };
 
     const onOnline = () => {
@@ -155,13 +180,13 @@ export function PwaServiceWorker() {
     window.addEventListener("focus", onFocus);
     window.addEventListener("online", onOnline);
 
-    // Periodic check every 15 minutes
+    // Periodic check every 10 minutes
     updateInterval = setInterval(() => {
       if (registrationRef.current) {
         void registrationRef.current.update();
-        void checkForRemoteUpdate();
       }
-    }, 15 * 60 * 1000);
+      void checkForRemoteUpdate();
+    }, 10 * 60 * 1000);
 
     return () => {
       navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
@@ -171,57 +196,7 @@ export function PwaServiceWorker() {
       window.removeEventListener("online", onOnline);
       if (updateInterval) clearInterval(updateInterval);
     };
-  }, [checkForRemoteUpdate]);
+  }, [checkForRemoteUpdate, triggerSilentUpdate]);
 
-  if (!updateAvailable || dismissed) {
-    return null;
-  }
-
-  return (
-    <aside
-      aria-label="Mise à jour disponible"
-      className="pwa-update-toast"
-      role="alert"
-    >
-      <div className="pwa-update-content">
-        <div className="pwa-update-icon-wrap" aria-hidden="true">
-          <Image
-            src={getAssetPath("/pwa-192x192.png")}
-            alt="UpCoin"
-            width={38}
-            height={38}
-            className="pwa-update-app-icon"
-            priority
-          />
-        </div>
-        <div className="pwa-update-texts">
-          <p className="pwa-update-title">Mise à jour disponible</p>
-          <p className="pwa-update-desc">
-            Une nouvelle version d&apos;UpCoin est en ligne.
-          </p>
-        </div>
-      </div>
-
-      <div className="pwa-update-actions">
-        <button
-          type="button"
-          onClick={applyUpdate}
-          disabled={isUpdating}
-          className="pwa-update-btn-refresh"
-        >
-          <RefreshCw className={`pwa-update-refresh-icon ${isUpdating ? "animate-spin" : ""}`} />
-          <span>{isUpdating ? "Chargement..." : "Actualiser"}</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setDismissed(true)}
-          className="pwa-update-btn-close"
-          aria-label="Fermer"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-    </aside>
-  );
+  return null;
 }

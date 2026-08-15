@@ -917,7 +917,6 @@ export default function Home() {
                       pattern={EMAIL_PATTERN.source}
                       autoComplete="email"
                       required
-                      autoFocus
                     />
                   </div>
                   {emailError && (
