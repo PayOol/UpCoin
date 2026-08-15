@@ -68,9 +68,9 @@ function readPositiveNumber(value: unknown): number | null {
   const parsed = typeof value === "number"
     ? value
     : typeof value === "string" && value.trim()
-      ? Number(value)
+      ? Number(value.replace(",", "."))
       : Number.NaN;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
 function extractList(payload: SebPayApiEnvelope): unknown[] {
@@ -284,3 +284,30 @@ export function getSebPayCollection(
     { method: "GET" },
   );
 }
+
+export async function calculateSebPayFee(
+  amount: number,
+  sourceCountry: string,
+  destinationCountry = sourceCountry,
+): Promise<number> {
+  const query = new URLSearchParams({
+    amount: String(amount),
+    source_country: sourceCountry.toLowerCase(),
+    destination_country: destinationCountry.toLowerCase(),
+    transaction_type: "collection",
+  });
+
+  try {
+    const payload = await requestSebPay(`/c/calculate-fee?${query.toString()}`, {
+      method: "GET",
+    });
+    if (isRecord(payload?.data)) {
+      const fee = readPositiveNumber(payload.data.fee_amount);
+      if (fee !== null) return fee;
+    }
+    return Math.ceil(amount * 0.055);
+  } catch {
+    return Math.ceil(amount * 0.055);
+  }
+}
+

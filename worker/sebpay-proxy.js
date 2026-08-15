@@ -41,7 +41,7 @@ async function handleSebPay(request, env) {
 
   const url = new URL(request.url);
   const apiPath = url.pathname.replace("/api/sebpay", "");
-  const sebPayApiUrl = `https://newapi.sebpay.bj/api/v1${apiPath}`;
+  const sebPayApiUrl = `https://newapi.sebpay.bj/api/v1${apiPath}${url.search}`;
   const headers = new Headers(request.headers);
   headers.set("X-Public-Key", env.SEBPAY_PUBLIC_KEY);
   headers.set("X-Secret-Key", env.SEBPAY_SECRET_KEY);

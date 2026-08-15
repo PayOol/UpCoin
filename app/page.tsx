@@ -147,6 +147,9 @@ const copy = {
     emailAddress: "Adresse e-mail",
     emailPlaceholder: "client@exemple.com",
     emailRequiredWarning: "Veuillez renseigner une adresse e-mail valide avant de continuer.",
+    confirmInstructions: "Je confirme avoir pris connaissance des instructions ci-dessus.",
+    instructionsRequiredWarning: "Veuillez cocher la case pour confirmer que vous avez pris connaissance des instructions.",
+    cancel: "Annuler",
     continue: "Continuer",
     back: "Retour",
     confirmOrder: "Confirmer la commande",
@@ -223,6 +226,9 @@ const copy = {
     emailAddress: "Email address",
     emailPlaceholder: "customer@example.com",
     emailRequiredWarning: "Please enter a valid email address before continuing.",
+    confirmInstructions: "I confirm that I have read the instructions above.",
+    instructionsRequiredWarning: "Please check the box to confirm you have read the instructions above.",
+    cancel: "Cancel",
     continue: "Continue",
     back: "Back",
     confirmOrder: "Confirm order",
@@ -272,6 +278,7 @@ export default function Home() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [instructionsAccepted, setInstructionsAccepted] = useState(false);
+  const [instructionsError, setInstructionsError] = useState(false);
   const [username, setUsername] = useState("");
   const [usernameError, setUsernameError] = useState(false);
   const usernameInputRef = useRef<HTMLInputElement>(null);
@@ -289,6 +296,7 @@ export default function Home() {
   const [dialCode, setDialCode] = useState("+237");
   const [paymentOrderId, setPaymentOrderId] = useState("");
   const [paymentProvider, setPaymentProvider] = useState<PaymentProvider>("soleaspay");
+  const [sebpayState, setSebpayState] = useState<"form" | "processing" | "success" | "failed">("form");
   const [sideNavOpen, setSideNavOpen] = useState(false);
   const paymentHistorySnapshot = useSyncExternalStore(
     subscribeToPaymentHistory,
@@ -359,7 +367,9 @@ export default function Home() {
     setCustomCoins(0);
     setStep(1);
     setInstructionsAccepted(false);
+    setInstructionsError(false);
     setPaymentOrderId("");
+    setSebpayState("form");
     setEmail("");
     setEmailError(false);
     setUsernameError(false);
@@ -391,7 +401,9 @@ export default function Home() {
   const openCheckout = () => {
     setStep(1);
     setInstructionsAccepted(false);
+    setInstructionsError(false);
     setPaymentOrderId("");
+    setSebpayState("form");
     setEmail("");
     setEmailError(false);
     setUsernameError(false);
@@ -403,7 +415,10 @@ export default function Home() {
   const closeCheckout = () => {
     setCheckoutOpen(false);
     setStep(1);
+    setInstructionsAccepted(false);
+    setInstructionsError(false);
     setPaymentOrderId("");
+    setSebpayState("form");
     setEmail("");
     setEmailError(false);
     setUsernameError(false);
@@ -420,6 +435,15 @@ export default function Home() {
     setTimeout(() => {
       emailInputRef.current?.focus();
     }, 60);
+  };
+
+  const handleStep1Continue = () => {
+    if (!instructionsAccepted) {
+      setInstructionsError(true);
+      return;
+    }
+    setInstructionsError(false);
+    setStep(2);
   };
 
   const handleStep2Continue = () => {
@@ -796,25 +820,37 @@ export default function Home() {
                   </div>
                 </div>
 
-                <label className="terms-check">
+                <label className={`terms-check${instructionsError ? " terms-check-error" : ""}`}>
                   <input
                     type="checkbox"
                     checked={instructionsAccepted}
-                    onChange={(event) => setInstructionsAccepted(event.target.checked)}
+                    onChange={(event) => {
+                      const isChecked = event.target.checked;
+                      setInstructionsAccepted(isChecked);
+                      if (instructionsError && isChecked) {
+                        setInstructionsError(false);
+                      }
+                    }}
                   />
                   <span><Check size={13} /></span>
-                  Je confirme avoir pris connaissance des instructions ci-dessus.
+                  {t.confirmInstructions}
                 </label>
 
+                {instructionsError && (
+                  <div className="field-error-notice" role="alert">
+                    <AlertCircle size={13} />
+                    <span>{t.instructionsRequiredWarning}</span>
+                  </div>
+                )}
+
                 <div className="instructions-actions">
-                  <button type="button" className="modal-secondary" onClick={closeCheckout}>Annuler</button>
+                  <button type="button" className="modal-secondary" onClick={closeCheckout}>{t.cancel}</button>
                   <button
                     type="button"
                     className="modal-primary"
-                    disabled={!instructionsAccepted}
-                    onClick={() => setStep(2)}
+                    onClick={handleStep1Continue}
                   >
-                    Continuer <ArrowRight size={18} />
+                    {t.continue} <ArrowRight size={18} />
                   </button>
                 </div>
               </div>
@@ -1067,7 +1103,6 @@ export default function Home() {
                     </button>
                     <button
                       type="button"
-                      style={{ display: "none" }}
                       className={`payment-provider-option${paymentProvider === "sebpay" ? " selected" : ""}`}
                       role="radio"
                       aria-checked={paymentProvider === "sebpay"}
@@ -1139,14 +1174,18 @@ export default function Home() {
             )}
 
             {step === 4 && paymentProvider === "sebpay" && (
-              <div className="checkout-step step-form">
-                <button type="button" className="back-button" onClick={() => setStep(3)}>
-                  <ArrowLeft size={15} /> {t.back}
-                </button>
-                <span className="modal-kicker">{formatProgress(t.progress, 4, 4)}</span>
-                <h2 id="checkout-title">
-                  {language === "fr" ? "Paiement SebPay" : "SebPay payment"}
-                </h2>
+              <div className={`checkout-step step-form${sebpayState !== "form" ? " is-processing" : ""}`}>
+                {sebpayState === "form" && (
+                  <>
+                    <button type="button" className="back-button" onClick={() => setStep(3)}>
+                      <ArrowLeft size={15} /> {t.back}
+                    </button>
+                    <span className="modal-kicker">{formatProgress(t.progress, 4, 4)}</span>
+                    <h2 id="checkout-title">
+                      {language === "fr" ? "Paiement SebPay" : "SebPay payment"}
+                    </h2>
+                  </>
+                )}
 
                 <SebPayCheckout
                   language={language}
@@ -1159,6 +1198,7 @@ export default function Home() {
                   dialCode={dialCode}
                   countryCode={countryCode}
                   email={email}
+                  onStateChange={setSebpayState}
                 />
               </div>
             )}

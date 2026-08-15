@@ -699,11 +699,35 @@ a { color: inherit; text-decoration: none; }
   .fields-row .field input { font-size: 13px; }
 }
 
-.field-label { margin-top: 14px; display: grid; gap: 7px; color: var(--checkout-muted-strong); font-size: 10px; font-weight: 700; }
+.field-label {
+  margin-top: 14px;
+  display: grid;
+  gap: 7px;
+  color: var(--checkout-muted-strong);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+}
+.field-label > span {
+  cursor: pointer;
+}
 .field-label .required { color: #ef4444; font-weight: 700; }
 .field-label .optional { color: var(--checkout-faint); font-weight: 500; }
 .field-hint { color: var(--checkout-faint); font-size: 9px; font-weight: 500; }
-.field { min-height: 52px; padding: 0 14px; border: 1px solid var(--checkout-line); border-radius: 11px; background: var(--checkout-surface); display: flex; align-items: center; gap: 10px; }
+.field {
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1px solid var(--checkout-line);
+  border-radius: 11px;
+  background: var(--checkout-surface);
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  cursor: text;
+  position: relative;
+  transition: border-color .15s, box-shadow .15s;
+}
 .field:focus-within { border-color: #5e51d8; box-shadow: 0 0 0 3px rgba(84,70,210,.12); }
 .field.field-error {
   border-color: #ef4444 !important;
@@ -744,12 +768,42 @@ a { color: inherit; text-decoration: none; }
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.field > span { color: var(--checkout-muted); font-weight: 750; }
-.field input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--checkout-text); }
+.field > span {
+  color: var(--checkout-muted);
+  font-weight: 750;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  user-select: none;
+  flex-shrink: 0;
+}
+.field input {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 52px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--checkout-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: text;
+  align-self: stretch;
+  padding: 0;
+  margin: 0;
+}
 .field input::placeholder { color: var(--checkout-faint); }
 
 .field-password { padding-right: 6px; }
-.country-phone-field { padding-left: 8px; gap: 8px; }
+.field-password .toggle-password { align-self: center; }
+.country-phone-field {
+  padding-left: 0;
+  padding-right: 14px;
+  gap: 0;
+}
 .country-select {
   border: 0;
   outline: 0;
@@ -759,18 +813,43 @@ a { color: inherit; text-decoration: none; }
   font-weight: 750;
   font-size: 11px;
   cursor: pointer;
-  padding: 4px 6px 4px 2px;
+  padding: 0 8px 0 14px;
   border-right: 1px solid var(--checkout-line);
-  margin-right: 2px;
+  margin-right: 0;
   max-width: 140px;
+  height: 100%;
+  min-height: 52px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
   white-space: nowrap;
   text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+.country-phone-field input {
+  padding-left: 12px;
+  padding-right: 0;
 }
 .country-select option {
   background: var(--checkout-panel);
   color: var(--checkout-text);
 }
-.toggle-password { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 8px; background: var(--checkout-surface-hover); color: var(--checkout-muted); cursor: pointer; transition: background .15s, color .15s; }
+.toggle-password {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--checkout-surface-hover);
+  color: var(--checkout-muted);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  z-index: 2;
+  position: relative;
+}
 .toggle-password:hover { background: var(--checkout-line); color: var(--checkout-text); }
 
 .credential-warning { margin-top: 16px; padding: 11px 12px; border: 1px solid rgba(99,85,221,.22); border-radius: 11px; background: rgba(84,70,210,.08); color: #7467e7; display: flex; align-items: flex-start; gap: 8px; }
@@ -836,7 +915,7 @@ a { color: inherit; text-decoration: none; }
 
 .payment-provider-selector { margin-top: 18px; }
 .payment-provider-selector-label { display: block; margin-bottom: 9px; color: var(--checkout-muted-strong); font-size: 9px; font-weight: 750; }
-.payment-provider-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 9px; }
+.payment-provider-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .payment-provider-option {
   position: relative;
   min-width: 0;
@@ -921,11 +1000,109 @@ a { color: inherit; text-decoration: none; }
 .sebpay-country-line strong { color: #e85e20; font-size: 9px; }
 .sebpay-fields-row,
 .sebpay-operator-country-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.sebpay-select-field { padding-right: 8px; }
-.sebpay-select-field select { width: 100%; border: 0; outline: 0; background: transparent; color: var(--checkout-text); font: inherit; cursor: pointer; }
+.sebpay-select-field {
+  padding: 0 !important;
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: stretch;
+}
+.sebpay-select-field select {
+  width: 100%;
+  height: 100%;
+  min-height: 52px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--checkout-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 34px 0 14px;
+  margin: 0;
+  align-self: stretch;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+.sebpay-select-field::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-65%) rotate(45deg);
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid var(--checkout-muted);
+  border-bottom: 2px solid var(--checkout-muted);
+  pointer-events: none;
+  transition: border-color .15s;
+}
+.sebpay-select-field:hover::after,
+.sebpay-select-field:focus-within::after {
+  border-color: var(--checkout-text);
+}
 .sebpay-select-field option { background: var(--checkout-surface); color: var(--checkout-text); }
 .sebpay-field-help { margin-top: -3px; color: var(--checkout-muted); font-size: 8px; }
-.sebpay-otp-instruction { padding: 8px 10px; border-radius: 8px; background: rgba(242,101,34,.08); color: var(--checkout-text); font-size: 9px; line-height: 1.45; }
+.sebpay-otp-instruction-inline {
+  margin: 2px 0 5px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 8.5px;
+  color: var(--checkout-muted);
+  font-weight: 500;
+  line-height: 1.45;
+}
+.sebpay-ussd-inline-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(242, 101, 34, 0.08);
+  border: 1px solid rgba(242, 101, 34, 0.28);
+  color: var(--checkout-text);
+  font-size: 8.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  user-select: all;
+  vertical-align: middle;
+}
+.sebpay-ussd-inline-btn:hover {
+  background: rgba(242, 101, 34, 0.16);
+  border-color: #f26522;
+  transform: translateY(-0.5px);
+}
+.sebpay-ussd-inline-btn:active {
+  transform: translateY(0);
+}
+.sebpay-ussd-inline-btn code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #e85e20;
+  letter-spacing: 0.02em;
+}
+.sebpay-ussd-inline-btn span:last-child {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--checkout-muted);
+}
+.sebpay-ussd-inline-btn.is-copied {
+  border-color: rgba(34, 197, 94, 0.5);
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+.sebpay-ussd-inline-btn.is-copied code {
+  color: #16a34a;
+}
+.sebpay-ussd-inline-btn.is-copied span:last-child {
+  color: #16a34a;
+}
 .sebpay-catalog-state { min-height: 92px; margin-top: 16px; padding: 16px; border: 1px solid var(--checkout-line); border-radius: 11px; background: var(--checkout-surface); color: var(--checkout-muted); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; font-size: 9px; }
 .sebpay-catalog-state button { border: 1px solid var(--checkout-line); border-radius: 8px; padding: 7px 12px; background: var(--checkout-panel); color: var(--checkout-text); font: inherit; cursor: pointer; }
 .sebpay-provider-link { min-height: 38px; padding: 8px 11px; border: 1px solid rgba(242,101,34,.25); border-radius: 9px; background: rgba(242,101,34,.08); color: #e85e20; display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 9px; font-weight: 700; text-align: center; }
@@ -936,9 +1113,187 @@ a { color: inherit; text-decoration: none; }
 .sebpay-checkout-submit:hover:not(:disabled) { box-shadow: 0 15px 30px rgba(242,101,34,.3); }
 .sebpay-spinner { width: 17px; height: 17px; flex: 0 0 auto; animation: soleaspay-checkout-spin .75s linear infinite; }
 
+/* SebPay Status Screen (Processing, Success, Failure) */
+.checkout-step.is-processing {
+  padding: 40px 24px 32px;
+}
+
+.sebpay-status-screen {
+  padding: 20px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 340px;
+  animation: sebpayStatusFadeIn 0.35s ease-out;
+}
+
+@keyframes sebpayStatusFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.sebpay-status-circle-wrap {
+  position: relative;
+  width: 124px;
+  height: 124px;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sebpay-status-spinner-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3.5px solid rgba(242, 101, 34, 0.12);
+  border-top-color: #f26522;
+  border-right-color: #f26522;
+  animation: sebpayRingSpin 1.3s cubic-bezier(0.4, 0.1, 0.4, 0.9) infinite;
+}
+
+.state-success .sebpay-status-spinner-ring {
+  border-color: rgba(34, 197, 94, 0.2);
+  border-top-color: #22c55e;
+  border-right-color: #22c55e;
+  animation: sebpayRingSpin 1.3s ease-out infinite;
+}
+
+.state-failed .sebpay-status-spinner-ring {
+  border-color: rgba(239, 68, 68, 0.2);
+  border-top-color: #ef4444;
+  border-right-color: #ef4444;
+  animation: sebpayRingSpin 1.3s ease-out infinite;
+}
+
+.sebpay-status-icon-inner {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: rgba(242, 101, 34, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s ease;
+}
+
+.state-success .sebpay-status-icon-inner {
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.state-failed .sebpay-status-icon-inner {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.sebpay-status-center-icon {
+  color: #f58a25;
+}
+
+.sebpay-status-center-icon.spin-subtle {
+  animation: sebpayIconRotate 7s linear infinite;
+}
+
+.sebpay-status-center-icon.success {
+  color: #16a34a;
+  animation: sebpayScaleIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.sebpay-status-center-icon.failed {
+  color: #ef4444;
+  animation: sebpayShake 0.4s ease-in-out both;
+}
+
+@keyframes sebpayRingSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes sebpayIconRotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes sebpayScaleIn {
+  0% { transform: scale(0.3); opacity: 0; }
+  70% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes sebpayShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+}
+
+.sebpay-status-title {
+  margin: 22px 0 10px;
+  font-size: 26px;
+  font-weight: 850;
+  letter-spacing: -0.035em;
+  color: var(--checkout-text);
+  line-height: 1.15;
+}
+
+.sebpay-status-description {
+  margin: 0 auto;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--checkout-muted);
+  max-width: 330px;
+}
+
+.sebpay-status-dots {
+  margin-top: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+}
+
+.sebpay-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f26522;
+  display: inline-block;
+  animation: sebpayDotBounce 1.4s ease-in-out infinite both;
+}
+
+.state-success .sebpay-status-dot {
+  background: #22c55e;
+}
+
+.state-failed .sebpay-status-dot {
+  background: #ef4444;
+}
+
+.sebpay-status-dot.dot-1 {
+  animation-delay: -0.32s;
+}
+.sebpay-status-dot.dot-2 {
+  animation-delay: -0.16s;
+}
+.sebpay-status-dot.dot-3 {
+  animation-delay: 0s;
+}
+
+@keyframes sebpayDotBounce {
+  0%, 80%, 100% {
+    transform: scale(0.65);
+    opacity: 0.3;
+  }
+  40% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+
 @media (max-width: 480px) {
   .country-select { max-width: 115px; font-size: 10px; padding-right: 4px; }
-  .payment-provider-options { grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr)); gap: 7px; }
+  .payment-provider-options { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
   .payment-provider-option { min-height: 48px; padding: 6px 7px; gap: 6px; grid-template-columns: 36px minmax(0, 1fr) 13px; }
   .payment-logo-wrap { width: 36px; height: 24px; border-radius: 6px; padding: 1.5px 3px; }
   .payment-provider-option strong,
@@ -950,8 +1305,13 @@ a { color: inherit; text-decoration: none; }
 
 .terms-check { margin-top: 15px; color: var(--checkout-muted); display: flex; align-items: flex-start; gap: 8px; font-size: 9px; line-height: 1.45; cursor: pointer; }
 .terms-check input { position: absolute; opacity: 0; }
-.terms-check > span { flex: 0 0 auto; width: 17px; height: 17px; border: 1px solid var(--checkout-line); border-radius: 5px; color: transparent; display: grid; place-items: center; }
+.terms-check > span { flex: 0 0 auto; width: 17px; height: 17px; border: 1px solid var(--checkout-line); border-radius: 5px; color: transparent; display: grid; place-items: center; transition: border-color .15s, box-shadow .15s; }
 .terms-check input:checked + span { border-color: #6155e4; background: #6155e4; color: white; }
+.terms-check.terms-check-error > span {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+  animation: fieldShake 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
 
 .payment-return-page {
   --return-bg: #f4f3f7;
@@ -1923,17 +2283,25 @@ html[data-theme="dark"] body {
   border: 1px solid #d9d6df;
   border-radius: 10px;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 10px;
+  cursor: text;
+  position: relative;
 }
 
 .custom-input-line input {
+  flex: 1 1 auto;
   width: 100%;
+  height: 100%;
+  min-height: 42px;
   border: 0;
   outline: 0;
   background: transparent;
   color: inherit;
   font-weight: 700;
+  cursor: text;
+  padding: 0;
+  margin: 0;
 }
 
 .custom-input-line input::-webkit-inner-spin-button {
@@ -1941,8 +2309,12 @@ html[data-theme="dark"] body {
 }
 
 .custom-input-line > span {
+  display: flex;
+  align-items: center;
   color: #8c8794;
   font-size: 9px;
+  pointer-events: none;
+  user-select: none;
 }
 
 .custom-input-area small {

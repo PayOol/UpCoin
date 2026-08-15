@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { ExternalLink, LoaderCircle } from "lucide-react";
+import { Check, Copy, ExternalLink, LoaderCircle, RotateCw, X } from "lucide-react";
 import {
   PAYMENT_EMAIL_DATA_KEY,
   PAYMENT_PENDING_CHECKOUT_KEY,
@@ -13,6 +13,7 @@ import {
 import { rememberPendingPayment } from "@/app/lib/payments/payment-history";
 import { getAssetPath } from "@/app/lib/asset-path";
 import {
+  calculateSebPayFee,
   createSebPayCollection,
   getSebPayCountries,
   getSebPayCollection,
@@ -32,20 +33,31 @@ type SebPayCheckoutProps = {
   whatsapp?: string;
   dialCode?: string;
   countryCode?: string;
+  onStateChange?: (state: "form" | "processing" | "success" | "failed") => void;
 };
 
 const copy = {
   fr: {
-    title: "Informations Mobile Money",
+    title: "Montant à payer",
     country: "Pays",
     operator: "Op\u00e9rateur",
     phone: "Numéro Mobile Money",
     phoneHint: "Format international, sans le signe +",
     otp: "OTP",
-    otpInstruction: "Composez {code} sur votre téléphone pour obtenir le code OTP.",
+    otpInstructionPrefix: "Composez le code",
+    otpInstructionSuffix: "sur votre téléphone pour recevoir le code OTP.",
+    copy: "Copier",
+    copied: "Copié !",
+    clickToCopy: "Cliquer pour copier le code USSD",
     openProvider: "Ouvrir la page de validation de l'opérateur",
     pay: "Payer avec SebPay",
     submitting: "Paiement en cours… Consultez votre téléphone.",
+    processingTitle: "Paiement en cours...",
+    processingDesc: "Veuillez consulter votre téléphone pour valider le paiement. Cette opération peut prendre quelques instants.",
+    successTitle: "Paiement réussi !",
+    successDesc: "Votre paiement a été validé avec succès. Redirection vers la confirmation...",
+    failedTitle: "Échec du paiement",
+    failedDesc: "La transaction n'a pas pu être validée. Redirection vers la page d'échec...",
     loadingCatalog: "Chargement des pays et opérateurs SebPay…",
     catalogUnavailable: "Le catalogue SebPay est momentanément indisponible.",
     retry: "Réessayer",
@@ -55,17 +67,27 @@ const copy = {
     pending: "Le paiement est toujours en attente. Vérifiez votre téléphone puis réessayez.",
   },
   en: {
-    title: "Mobile Money details",
+    title: "Amount to pay",
     country: "Country",
     operator: "Operator",
     phone: "Mobile Money number",
     phoneHint: "International format, without the + sign",
     otp: "OTP",
-    otpInstruction: "Dial {code} on your phone to get the OTP code.",
+    otpInstructionPrefix: "Dial the code",
+    otpInstructionSuffix: "on your phone to receive the OTP code.",
+    copy: "Copy",
+    copied: "Copied!",
+    clickToCopy: "Click to copy USSD code",
     openProvider: "Open the operator validation page",
     pay: "Pay with SebPay",
-    submitting: "Payment in progress\u2026 Check your phone.",
-    loadingCatalog: "Loading SebPay countries and operators\u2026",
+    submitting: "Payment in progress… Check your phone.",
+    processingTitle: "Payment in progress...",
+    processingDesc: "Please check your phone to validate the payment. This operation may take a few moments.",
+    successTitle: "Payment successful!",
+    successDesc: "Your payment has been successfully validated. Redirecting...",
+    failedTitle: "Payment failed",
+    failedDesc: "The transaction could not be validated. Redirecting...",
+    loadingCatalog: "Loading SebPay countries and operators…",
     catalogUnavailable: "The SebPay catalog is temporarily unavailable.",
     retry: "Retry",
     invalidPhone: "Enter a valid international number (8 to 15 digits).",
@@ -107,7 +129,7 @@ function initialLocalPhone(whatsapp?: string, country?: SebPayCountry): string {
     : digits.replace(/^0+/, "");
 }
 
-function convertAmount(amount: number, currency: string, exchangeRate: number): number {
+function convertBaseAmount(amount: number, currency: string, exchangeRate: number): number {
   const exchangeFee = currency === "XAF" || currency === "XOF" ? 0 : 30;
   return Math.ceil((amount + exchangeFee) / exchangeRate);
 }
@@ -127,6 +149,7 @@ export function SebPayCheckout({
   whatsapp,
   dialCode,
   countryCode: countryCodeProp,
+  onStateChange,
 }: SebPayCheckoutProps) {
   const t = copy[language];
   const [countries, setCountries] = useState<SebPayCountry[]>([]);
@@ -136,10 +159,28 @@ export function SebPayCheckout({
   const [otpCode, setOtpCode] = useState("");
   const [providerLink, setProviderLink] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feeAmount, setFeeAmount] = useState<number>(0);
+  const [copiedUssd, setCopiedUssd] = useState(false);
+  const [uiState, setUiState] = useState<"form" | "processing" | "success" | "failed">("form");
   const [error, setError] = useState<string | null>(null);
   const [catalogError, setCatalogError] = useState<{ message: string | null } | null>(null);
   const [isCatalogLoading, setIsCatalogLoading] = useState(true);
   const [catalogRevision, setCatalogRevision] = useState(0);
+
+  function updateUiState(nextState: "form" | "processing" | "success" | "failed"): void {
+    setUiState(nextState);
+    onStateChange?.(nextState);
+  }
+
+  async function copyUssdCode(code: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedUssd(true);
+      window.setTimeout(() => setCopiedUssd(false), 2000);
+    } catch {
+      // Fallback
+    }
+  }
 
   useEffect(() => {
     let ignore = false;
@@ -180,11 +221,46 @@ export function SebPayCheckout({
   const selectedOperator = availableOperators.find(
     (candidate) => candidate.code === operator,
   ) ?? null;
-  const paymentAmount = selectedCountry
-    ? convertAmount(amount, selectedCountry.currency, selectedCountry.exchangeRate)
+
+  useEffect(() => {
+    if (!selectedCountry) return;
+    let ignore = false;
+    const baseConverted = convertBaseAmount(
+      amount,
+      selectedCountry.currency,
+      selectedCountry.exchangeRate,
+    );
+
+    void calculateSebPayFee(baseConverted, selectedCountry.code, selectedCountry.code)
+      .then((fee) => {
+        if (ignore) return;
+        setFeeAmount(fee);
+      })
+      .catch(() => {
+        if (!ignore) setFeeAmount(Math.ceil(baseConverted * 0.055));
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [amount, selectedCountry]);
+
+  const baseConvertedAmount = selectedCountry
+    ? convertBaseAmount(amount, selectedCountry.currency, selectedCountry.exchangeRate)
     : amount;
+
+  // Calcul exact SebPay : Montant de base + Frais retournés par l'API SebPay
+  const displayAmount = baseConvertedAmount + Math.ceil(feeAmount);
+
+  // Exception OTP : Pour les opérateurs avec OTP, le montant soumis à SebPay et saisi dans le code USSD
+  // doit correspondre au montant calculé avec frais (displayAmount).
+  // Pour les opérateurs standard (push Mobile Money), SebPay déduit ses frais à la source, on soumet le montant de base.
+  const collectionAmount = selectedOperator?.otpRequired
+    ? displayAmount
+    : baseConvertedAmount;
+
   const otpUssdCode = selectedOperator?.otpRequired && selectedOperator.ussdCode
-    ? selectedOperator.ussdCode.replace(/montant/gi, String(paymentAmount))
+    ? selectedOperator.ussdCode.replace(/montant/gi, String(displayAmount))
     : null;
 
   function rememberPendingCheckout(payment: SebPayCollection): void {
@@ -241,12 +317,29 @@ export function SebPayCheckout({
     for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
       await wait(POLL_INTERVAL_MS);
       const payment = await getSebPayCollection(reference);
-      if (payment.status !== "pending") {
+      if (payment.status === "success") {
+        updateUiState("success");
+        await wait(3000);
+        finishPayment(payment);
+        return;
+      }
+      if (payment.status === "failed" || payment.status === "cancelled") {
+        updateUiState("failed");
+        await wait(3000);
         finishPayment(payment);
         return;
       }
     }
-    throw new SebPayClientError(t.pending);
+    updateUiState("failed");
+    await wait(3000);
+    const timeoutPayment: SebPayCollection = {
+      orderId,
+      transactionId: reference,
+      status: "failed",
+      rawStatus: "TIMEOUT",
+      providerLink: null,
+    };
+    finishPayment(timeoutPayment);
   }
 
   async function submitPayment(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -273,9 +366,11 @@ export function SebPayCheckout({
     setIsSubmitting(true);
     setError(null);
     setProviderLink(null);
+    updateUiState("processing");
+
     try {
       const payment = await createSebPayCollection({
-        amount: paymentAmount,
+        amount: collectionAmount,
         currency: selectedCountry.currency,
         phone: normalizedPhone,
         operator: selectedOperator.code,
@@ -293,19 +388,81 @@ export function SebPayCheckout({
         );
         if (!providerWindow) setProviderLink(payment.providerLink);
       }
-      if (payment.status !== "pending") {
+      if (payment.status === "success") {
+        updateUiState("success");
+        await wait(3000);
+        finishPayment(payment);
+        return;
+      }
+      if (payment.status === "failed" || payment.status === "cancelled") {
+        updateUiState("failed");
+        await wait(3000);
         finishPayment(payment);
         return;
       }
       await waitForFinalStatus(payment.transactionId ?? orderId);
     } catch (submitError) {
-      setError(
-        submitError instanceof SebPayClientError
-          ? submitError.message
-          : "SebPay est momentan\u00e9ment indisponible.",
-      );
-      setIsSubmitting(false);
+      updateUiState("failed");
+      await wait(3000);
+      const failedPayment: SebPayCollection = {
+        orderId,
+        transactionId: null,
+        status: "failed",
+        rawStatus: submitError instanceof SebPayClientError ? submitError.message : "FAILED",
+        providerLink: null,
+      };
+      finishPayment(failedPayment);
     }
+  }
+
+  if (uiState === "processing" || uiState === "success" || uiState === "failed") {
+    return (
+      <div className={`sebpay-status-screen state-${uiState}`} role="status" aria-live="polite">
+        <div className="sebpay-status-circle-wrap">
+          <div className="sebpay-status-spinner-ring" aria-hidden="true" />
+          <div className="sebpay-status-icon-inner" aria-hidden="true">
+            {uiState === "processing" && (
+              <RotateCw className="sebpay-status-center-icon spin-subtle" size={32} />
+            )}
+            {uiState === "success" && (
+              <Check className="sebpay-status-center-icon success" size={38} strokeWidth={2.8} />
+            )}
+            {uiState === "failed" && (
+              <X className="sebpay-status-center-icon failed" size={38} strokeWidth={2.8} />
+            )}
+          </div>
+        </div>
+
+        <h3 className="sebpay-status-title">
+          {uiState === "processing" && t.processingTitle}
+          {uiState === "success" && t.successTitle}
+          {uiState === "failed" && t.failedTitle}
+        </h3>
+
+        <p className="sebpay-status-description">
+          {uiState === "processing" && t.processingDesc}
+          {uiState === "success" && t.successDesc}
+          {uiState === "failed" && t.failedDesc}
+        </p>
+
+        {uiState === "processing" && providerLink && (
+          <a
+            className="sebpay-provider-link"
+            href={providerLink}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <ExternalLink size={15} aria-hidden="true" /> {t.openProvider}
+          </a>
+        )}
+
+        <div className="sebpay-status-dots" aria-hidden="true">
+          <span className="sebpay-status-dot dot-1" />
+          <span className="sebpay-status-dot dot-2" />
+          <span className="sebpay-status-dot dot-3" />
+        </div>
+      </div>
+    );
   }
 
   if (isCatalogLoading || catalogError || !selectedCountry) {
@@ -339,7 +496,7 @@ export function SebPayCheckout({
     <form className="sebpay-checkout-form" onSubmit={(event) => void submitPayment(event)}>
       <div className="sebpay-country-line">
         <span>{t.title}</span>
-        <strong>{paymentAmount.toLocaleString()} {selectedCountry.currency}</strong>
+        <strong>{displayAmount.toLocaleString()} {selectedCountry.currency}</strong>
       </div>
 
       {/* 1. Numéro Mobile Money */}
@@ -370,9 +527,28 @@ export function SebPayCheckout({
         <label className="field-label">
           <span>{t.otp} <span className="required">*</span></span>
           {otpUssdCode && (
-            <small className="sebpay-otp-instruction">
-              {t.otpInstruction.replace("{code}", otpUssdCode)}
-            </small>
+            <div className="sebpay-otp-instruction-inline">
+              <span>{t.otpInstructionPrefix}</span>
+              <button
+                type="button"
+                className={`sebpay-ussd-inline-btn ${copiedUssd ? "is-copied" : ""}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  void copyUssdCode(otpUssdCode);
+                }}
+                title={copiedUssd ? t.copied : t.clickToCopy}
+              >
+                <code>{otpUssdCode}</code>
+                {copiedUssd ? (
+                  <Check size={10} aria-hidden="true" />
+                ) : (
+                  <Copy size={10} aria-hidden="true" />
+                )}
+                <span>{copiedUssd ? t.copied : t.copy}</span>
+              </button>
+              <span>{t.otpInstructionSuffix}</span>
+            </div>
           )}
           <div className="field">
             <input
@@ -467,11 +643,10 @@ export function SebPayCheckout({
         disabled={isSubmitting || !EMAIL_PATTERN.test(email) || !selectedOperator}
         aria-busy={isSubmitting}
       >
-        {isSubmitting
-          ? <LoaderCircle className="sebpay-spinner" aria-hidden="true" />
-          : <ExternalLink size={18} aria-hidden="true" />}
-        <span>{isSubmitting ? t.submitting : t.pay}</span>
+        <ExternalLink size={18} aria-hidden="true" />
+        <span>{t.pay}</span>
       </button>
     </form>
   );
 }
+
