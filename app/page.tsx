@@ -333,7 +333,8 @@ export default function Home() {
   const deliveredCoins = selectedPack.coins + (selectedPack.bonus ?? 0);
   const canContinue =
     username.trim().replace(/^@/, "").length >= 2 &&
-    password.length >= 4;
+    password.length >= 4 &&
+    whatsapp.replace(/\D/g, "").length >= 6;
 
   const selectPack = (pack: Pack) => {
     setSelectedPack(pack);
@@ -823,7 +824,7 @@ export default function Home() {
 
                 <label className="field-label">
                   <span>
-                    {t.whatsapp} <span className="optional">({t.optional})</span>{" "}
+                    {t.whatsapp} <span className="required">*</span>{" "}
                     <span className="field-hint">— {t.whatsappHint}</span>
                   </span>
                   <div className="field country-phone-field">
@@ -862,6 +863,7 @@ export default function Home() {
                       inputMode="numeric"
                       pattern="[0-9]*"
                       autoComplete="tel"
+                      required
                     />
                   </div>
                 </label>
