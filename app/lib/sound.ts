@@ -1,13 +1,14 @@
 /**
- * Moteur sonore d'interaction instantané et doux pour UpCoin (Web Audio API).
+ * Moteur sonore d'interaction instantané, doux et normalisé pour UpCoin (Web Audio API).
  * 
- * Utilise des tampons audio pré-synthétisés en mémoire (AudioBuffer)
- * pour garantir 0ms de latence, zéro saccade et 100% de fiabilité.
+ * Toutes les sonorités sont normalisées à un niveau doux et feutré (micro-feedbacks discrets)
+ * avec des tampons audio pré-synthétisés en mémoire (AudioBuffer) pour 0ms de latence.
  */
 
 const SOUND_PREFERENCE_KEY = "upcoin-sound-enabled";
 const PREFERENCE_CHANGE_EVENT = "upcoin-preference-change";
 const SAMPLE_RATE = 44100;
+const MASTER_VOLUME = 0.35; // Volume général doux et confortable
 
 type SoundName =
   | "tap"
@@ -23,139 +24,164 @@ type SoundName =
   | "error";
 
 let audioCtx: AudioContext | null = null;
+let masterGainNode: GainNode | null = null;
 const audioBuffers = new Map<SoundName, AudioBuffer>();
 const wavDataUris = new Map<SoundName, string>();
 let pendingAutoplaySound: SoundName | null = null;
 let lastPlayTimes = new Map<string, number>();
 
-// --- GÉNÉRATEURS DE SIGNAUX ACOUSTIQUES (FLUIDES ET FEUTRÉS) ---
+// --- NORMALISATION AUTOMATIQUE DU VOLUME DES SIGNAUX ---
+
+function normalizeSamples(samples: Float32Array, targetPeak = 0.08): Float32Array {
+  let maxPeak = 0;
+  for (let i = 0; i < samples.length; i++) {
+    const abs = Math.abs(samples[i]);
+    if (abs > maxPeak) maxPeak = abs;
+  }
+  if (maxPeak > 0) {
+    const scale = targetPeak / maxPeak;
+    for (let i = 0; i < samples.length; i++) {
+      samples[i] *= scale;
+    }
+  }
+  return samples;
+}
+
+// --- GÉNÉRATEURS DE SIGNAUX ACOUSTIQUES FEUTRÉS ---
 
 function generateSamples(type: SoundName): Float32Array {
   let length = 0;
+  let targetPeak = 0.075;
   let generator: (t: number) => number;
 
   switch (type) {
     case "tap": {
-      // Tap feutré doux (0.038s)
+      // Tap feutré très doux (0.038s)
       length = Math.floor(SAMPLE_RATE * 0.038);
+      targetPeak = 0.065;
       generator = (t) => {
         const progress = t / 0.038;
-        const freq = 360 - progress * 200;
+        const freq = 340 - progress * 190;
         const env = Math.sin(Math.min(1, t / 0.003) * Math.PI * 0.5) * Math.exp(-t / 0.009);
-        return Math.sin(2 * Math.PI * freq * t) * env * 0.22;
+        return Math.sin(2 * Math.PI * freq * t) * env;
       };
       break;
     }
     case "pop": {
-      // Bulle acoustique (0.045s)
+      // Bulle acoustique discrète (0.045s)
       length = Math.floor(SAMPLE_RATE * 0.045);
+      targetPeak = 0.07;
       generator = (t) => {
         const progress = t / 0.045;
-        const freq = 480 - progress * 220;
+        const freq = 460 - progress * 210;
         const env = Math.sin(Math.min(1, t / 0.003) * Math.PI * 0.5) * Math.exp(-t / 0.012);
-        return Math.sin(2 * Math.PI * freq * t) * env * 0.24;
+        return Math.sin(2 * Math.PI * freq * t) * env;
       };
       break;
     }
     case "toggleOn": {
-      // Interrupteur montant doux (0.09s)
+      // Interrupteur montant feutré (0.09s)
       length = Math.floor(SAMPLE_RATE * 0.09);
+      targetPeak = 0.075;
       generator = (t) => {
         let sample = 0;
-        // Note 1 (A4: 440Hz, t: 0..0.04s)
         if (t < 0.045) {
           const env1 = Math.sin(Math.min(1, t / 0.003) * Math.PI * 0.5) * Math.exp(-t / 0.012);
-          sample += Math.sin(2 * Math.PI * 440 * t) * env1 * 0.16;
+          sample += Math.sin(2 * Math.PI * 440 * t) * env1 * 0.8;
         }
-        // Note 2 (E5: 660Hz, t: 0.035..0.09s)
         if (t >= 0.032) {
           const t2 = t - 0.032;
           const env2 = Math.sin(Math.min(1, t2 / 0.003) * Math.PI * 0.5) * Math.exp(-t2 / 0.018);
-          sample += Math.sin(2 * Math.PI * 660 * t2) * env2 * 0.20;
+          sample += Math.sin(2 * Math.PI * 660 * t2) * env2;
         }
         return sample;
       };
       break;
     }
     case "toggleOff": {
-      // Interrupteur descendant doux (0.09s)
+      // Interrupteur descendant feutré (0.09s)
       length = Math.floor(SAMPLE_RATE * 0.09);
+      targetPeak = 0.075;
       generator = (t) => {
         let sample = 0;
         if (t < 0.045) {
           const env1 = Math.sin(Math.min(1, t / 0.003) * Math.PI * 0.5) * Math.exp(-t / 0.012);
-          sample += Math.sin(2 * Math.PI * 580 * t) * env1 * 0.16;
+          sample += Math.sin(2 * Math.PI * 580 * t) * env1 * 0.8;
         }
         if (t >= 0.032) {
           const t2 = t - 0.032;
           const env2 = Math.sin(Math.min(1, t2 / 0.003) * Math.PI * 0.5) * Math.exp(-t2 / 0.018);
-          sample += Math.sin(2 * Math.PI * 390 * t2) * env2 * 0.18;
+          sample += Math.sin(2 * Math.PI * 390 * t2) * env2;
         }
         return sample;
       };
       break;
     }
     case "stepUp": {
-      // Étape suivante (0.055s)
+      // Étape suivante douce (0.055s)
       length = Math.floor(SAMPLE_RATE * 0.055);
+      targetPeak = 0.07;
       generator = (t) => {
         const progress = t / 0.055;
-        const freq = 420 + progress * 180;
+        const freq = 420 + progress * 170;
         const env = Math.sin(Math.min(1, t / 0.004) * Math.PI * 0.5) * Math.exp(-t / 0.016);
-        return Math.sin(2 * Math.PI * freq * t) * env * 0.20;
+        return Math.sin(2 * Math.PI * freq * t) * env;
       };
       break;
     }
     case "stepDown": {
-      // Étape précédente (0.055s)
+      // Étape précédente douce (0.055s)
       length = Math.floor(SAMPLE_RATE * 0.055);
+      targetPeak = 0.07;
       generator = (t) => {
         const progress = t / 0.055;
-        const freq = 540 - progress * 160;
+        const freq = 530 - progress * 150;
         const env = Math.sin(Math.min(1, t / 0.004) * Math.PI * 0.5) * Math.exp(-t / 0.016);
-        return Math.sin(2 * Math.PI * freq * t) * env * 0.18;
+        return Math.sin(2 * Math.PI * freq * t) * env;
       };
       break;
     }
     case "modalOpen": {
-      // Ouverture aérienne (0.07s)
+      // Ouverture aérienne très douce (0.07s)
       length = Math.floor(SAMPLE_RATE * 0.07);
+      targetPeak = 0.065;
       generator = (t) => {
         const progress = t / 0.07;
-        const freq = 280 + progress * 200;
+        const freq = 280 + progress * 190;
         const env = Math.sin(Math.min(1, t / 0.005) * Math.PI * 0.5) * Math.exp(-t / 0.022);
-        return Math.sin(2 * Math.PI * freq * t) * env * 0.18;
+        return Math.sin(2 * Math.PI * freq * t) * env;
       };
       break;
     }
     case "modalClose": {
-      // Fermeture aérienne (0.06s)
+      // Fermeture aérienne très douce (0.06s)
       length = Math.floor(SAMPLE_RATE * 0.06);
+      targetPeak = 0.065;
       generator = (t) => {
         const progress = t / 0.06;
-        const freq = 420 - progress * 180;
+        const freq = 410 - progress * 170;
         const env = Math.sin(Math.min(1, t / 0.004) * Math.PI * 0.5) * Math.exp(-t / 0.018);
-        return Math.sin(2 * Math.PI * freq * t) * env * 0.17;
+        return Math.sin(2 * Math.PI * freq * t) * env;
       };
       break;
     }
     case "success": {
-      // Carillon de succès harmonique (0.55s) : C5 -> E5 -> G5 -> C6
+      // Carillon de succès harmonique équilibré (0.55s) : C5 -> E5 -> G5 -> C6
       length = Math.floor(SAMPLE_RATE * 0.55);
+      targetPeak = 0.085;
       generator = (t) => {
         let sample = 0;
         const notes = [
-          { freq: 523.25, start: 0.00, decay: 0.14, gain: 0.18 },
-          { freq: 659.25, start: 0.06, decay: 0.16, gain: 0.20 },
-          { freq: 783.99, start: 0.12, decay: 0.18, gain: 0.22 },
-          { freq: 1046.5, start: 0.18, decay: 0.24, gain: 0.26 },
+          { freq: 523.25, start: 0.00, decay: 0.14, gain: 0.75 },
+          { freq: 659.25, start: 0.06, decay: 0.16, gain: 0.85 },
+          { freq: 783.99, start: 0.12, decay: 0.18, gain: 0.95 },
+          { freq: 1046.5, start: 0.18, decay: 0.24, gain: 1.05 },
         ];
         for (const note of notes) {
           if (t >= note.start) {
             const dt = t - note.start;
             const env = Math.sin(Math.min(1, dt / 0.006) * Math.PI * 0.5) * Math.exp(-dt / note.decay);
-            // Légère composante harmonique douce (octave adoucie)
-            const tone = Math.sin(2 * Math.PI * note.freq * dt) + 0.2 * Math.sin(4 * Math.PI * note.freq * dt);
+            const tone = Math.sin(2 * Math.PI * note.freq * dt) + 0.15 * Math.sin(4 * Math.PI * note.freq * dt);
             sample += tone * env * note.gain;
           }
         }
@@ -166,12 +192,13 @@ function generateSamples(type: SoundName): Float32Array {
     case "failure": {
       // Mélodie d'échec / annulation feutrée et apaisante (0.50s) : A4 -> F4 -> D4
       length = Math.floor(SAMPLE_RATE * 0.50);
+      targetPeak = 0.08;
       generator = (t) => {
         let sample = 0;
         const notes = [
-          { freq: 440.00, start: 0.00, decay: 0.12, gain: 0.17 },
-          { freq: 349.23, start: 0.11, decay: 0.14, gain: 0.19 },
-          { freq: 293.66, start: 0.22, decay: 0.22, gain: 0.22 },
+          { freq: 440.00, start: 0.00, decay: 0.12, gain: 0.8 },
+          { freq: 349.23, start: 0.11, decay: 0.14, gain: 0.9 },
+          { freq: 293.66, start: 0.22, decay: 0.22, gain: 1.0 },
         ];
         for (const note of notes) {
           if (t >= note.start) {
@@ -188,16 +215,17 @@ function generateSamples(type: SoundName): Float32Array {
     case "error": {
       // Avertissement discret feutré (0.12s)
       length = Math.floor(SAMPLE_RATE * 0.12);
+      targetPeak = 0.07;
       generator = (t) => {
         let sample = 0;
         if (t < 0.06) {
           const env1 = Math.sin(Math.min(1, t / 0.003) * Math.PI * 0.5) * Math.exp(-t / 0.015);
-          sample += Math.sin(2 * Math.PI * 280 * t) * env1 * 0.18;
+          sample += Math.sin(2 * Math.PI * 280 * t) * env1 * 0.8;
         }
         if (t >= 0.045) {
           const t2 = t - 0.045;
           const env2 = Math.sin(Math.min(1, t2 / 0.003) * Math.PI * 0.5) * Math.exp(-t2 / 0.02);
-          sample += Math.sin(2 * Math.PI * 230 * t2) * env2 * 0.20;
+          sample += Math.sin(2 * Math.PI * 230 * t2) * env2;
         }
         return sample;
       };
@@ -205,15 +233,15 @@ function generateSamples(type: SoundName): Float32Array {
     }
   }
 
-  const samples = new Float32Array(length);
+  const rawSamples = new Float32Array(length);
   for (let i = 0; i < length; i++) {
     const t = i / SAMPLE_RATE;
-    samples[i] = generator(t);
+    rawSamples[i] = generator(t);
   }
-  return samples;
+  return normalizeSamples(rawSamples, targetPeak);
 }
 
-// Convertit des échantillons PCM Float32 en Data URI WAV standard pour fallback instantané
+// Convertit des échantillons PCM Float32 en Data URI WAV standard
 function samplesToWavDataUri(samples: Float32Array): string {
   const numChannels = 1;
   const bitsPerSample = 16;
@@ -267,6 +295,9 @@ function getOrCreateAudioContext(): AudioContext | null {
       (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (AudioContextClass) {
       audioCtx = new AudioContextClass({ latencyHint: "interactive" });
+      masterGainNode = audioCtx.createGain();
+      masterGainNode.gain.setValueAtTime(MASTER_VOLUME, audioCtx.currentTime);
+      masterGainNode.connect(audioCtx.destination);
     }
   }
 
@@ -322,14 +353,13 @@ if (typeof window !== "undefined") {
     }
   };
 
-  // Pré-chargement des sons en arrière-plan
   if (typeof window.requestIdleCallback === "function") {
     window.requestIdleCallback(preloadSounds);
   } else {
     window.setTimeout(preloadSounds, 10);
   }
 
-// Déverrouillage automatique et déchargement des sons en attente (autoplay)
+  // Déverrouillage automatique et déchargement des sons en attente (autoplay)
   const unlockAndFlush = () => {
     const ctx = getOrCreateAudioContext();
     if (ctx && ctx.state === "suspended") {
@@ -390,7 +420,7 @@ export function toggleSound(): boolean {
 }
 
 /**
- * Joue un son instantanément (0ms de latence via AudioBuffer ou fallback HTML5 Audio)
+ * Joue un son instantanément avec volume doux et normalisé
  */
 function playSound(name: SoundName, minIntervalMs = 15): void {
   if (!isSoundEnabled() || typeof window === "undefined") return;
@@ -408,7 +438,11 @@ function playSound(name: SoundName, minIntervalMs = 15): void {
       if (buffer) {
         const source = ctx.createBufferSource();
         source.buffer = buffer;
-        source.connect(ctx.destination);
+        if (masterGainNode) {
+          source.connect(masterGainNode);
+        } else {
+          source.connect(ctx.destination);
+        }
         source.start(0);
         return;
       }
@@ -417,14 +451,13 @@ function playSound(name: SoundName, minIntervalMs = 15): void {
     }
   }
 
-  // Fallback direct HTML5 Audio pour un déclenchement garanti
+  // Fallback direct HTML5 Audio avec volume atténué et doux
   try {
     const audio = new Audio(getWavDataUri(name));
-    audio.volume = 1.0;
+    audio.volume = MASTER_VOLUME;
     const playPromise = audio.play();
     if (playPromise) {
       playPromise.catch(() => {
-        // Enregistre pour lecture dès la première interaction
         if (name === "success" || name === "failure") {
           pendingAutoplaySound = name;
         }
@@ -463,16 +496,10 @@ export function playModalClose(): void {
   playSound("modalClose", 40);
 }
 
-/**
- * Déclenché au chargement de la page de succès ou validation de paiement
- */
 export function playSuccess(): void {
   playSound("success", 200);
 }
 
-/**
- * Déclenché au chargement de la page d'échec ou annulation de paiement
- */
 export function playFailure(): void {
   playSound("failure", 200);
 }
@@ -484,4 +511,3 @@ export function playError(): void {
 export function getSoundWavDataUri(name: SoundName): string {
   return getWavDataUri(name);
 }
-
