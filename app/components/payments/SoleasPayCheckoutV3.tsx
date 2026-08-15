@@ -25,6 +25,8 @@ type SoleasPayCheckoutV3Props = {
   dialCode?: string;
   email: string;
   coins: number;
+  isEmailValid?: boolean;
+  onRequireEmail?: () => void;
 };
 
 const CHECKOUT_URL = "https://pay.soleaspay.com";
@@ -42,6 +44,8 @@ export function SoleasPayCheckoutV3({
   dialCode,
   email,
   coins,
+  isEmailValid,
+  onRequireEmail,
 }: SoleasPayCheckoutV3Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submissionStartedRef = useRef(false);
@@ -97,6 +101,12 @@ export function SoleasPayCheckoutV3({
   }
 
   function submitCheckout(event: FormEvent<HTMLFormElement>): void {
+    if (isEmailValid === false) {
+      event.preventDefault();
+      onRequireEmail?.();
+      return;
+    }
+
     if (allowNativeSubmitRef.current) return;
 
     event.preventDefault();
@@ -138,8 +148,14 @@ export function SoleasPayCheckoutV3({
       <button
         className="soleaspay-checkout-submit"
         type="submit"
-        disabled={!origin || !email || isSubmitting}
+        disabled={!origin || isSubmitting}
         aria-busy={isSubmitting}
+        onClick={(event) => {
+          if (isEmailValid === false) {
+            event.preventDefault();
+            onRequireEmail?.();
+          }
+        }}
       >
         {isSubmitting && <span className="soleaspay-checkout-spinner" aria-hidden="true" />}
         <span>

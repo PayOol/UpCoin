@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   Check,
@@ -28,7 +29,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { SebPayCheckout } from "@/app/components/payments/SebPayCheckout";
 import { SoleasPayCheckoutV3 } from "@/app/components/payments/SoleasPayCheckoutV3";
 import { getAssetPath } from "@/app/lib/asset-path";
@@ -145,6 +146,7 @@ const copy = {
     whatsappPlaceholder: "6 00 00 00 00",
     emailAddress: "Adresse e-mail",
     emailPlaceholder: "client@exemple.com",
+    emailRequiredWarning: "Veuillez renseigner une adresse e-mail valide avant de continuer.",
     continue: "Continuer",
     back: "Retour",
     confirmOrder: "Confirmer la commande",
@@ -217,6 +219,7 @@ const copy = {
     whatsappPlaceholder: "6 00 00 00 00",
     emailAddress: "Email address",
     emailPlaceholder: "customer@example.com",
+    emailRequiredWarning: "Please enter a valid email address before continuing.",
     continue: "Continue",
     back: "Back",
     confirmOrder: "Confirm order",
@@ -271,6 +274,8 @@ export default function Home() {
   const [showPassword, setShowPassword] = useState(false);
   const [whatsapp, setWhatsapp] = useState("");
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState(false);
+  const emailInputRef = useRef<HTMLInputElement>(null);
   const [countryCode, setCountryCode] = useState("CM");
   const [dialCode, setDialCode] = useState("+237");
   const [paymentOrderId, setPaymentOrderId] = useState("");
@@ -319,6 +324,15 @@ export default function Home() {
     };
   }, [checkoutOpen, sideNavOpen]);
 
+  useEffect(() => {
+    if (step === 3) {
+      const timer = setTimeout(() => {
+        emailInputRef.current?.focus();
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [step]);
+
   const deliveredCoins = selectedPack.coins + (selectedPack.bonus ?? 0);
   const canContinue =
     username.trim().replace(/^@/, "").length >= 2 &&
@@ -331,6 +345,7 @@ export default function Home() {
     setInstructionsAccepted(false);
     setPaymentOrderId("");
     setEmail("");
+    setEmailError(false);
     setCheckoutOpen(true);
   };
 
@@ -359,6 +374,7 @@ export default function Home() {
     setInstructionsAccepted(false);
     setPaymentOrderId("");
     setEmail("");
+    setEmailError(false);
     setCheckoutOpen(true);
   };
 
@@ -367,13 +383,18 @@ export default function Home() {
     setStep(1);
     setPaymentOrderId("");
     setEmail("");
+    setEmailError(false);
     setPassword("");
     setShowPassword(false);
   };
 
   const openPaymentStep = () => {
     setPaymentOrderId(createPaymentOrderId());
+    setEmailError(false);
     setStep(3);
+    setTimeout(() => {
+      emailInputRef.current?.focus();
+    }, 60);
   };
 
   const checkoutTotalSteps = paymentProvider === "sebpay" ? 4 : 3;
@@ -875,20 +896,39 @@ export default function Home() {
 
                 <label className="field-label checkout-email-field">
                   <span>{t.emailAddress} <span className="required">*</span></span>
-                  <div className="field">
+                  <div className={`field${emailError ? " field-error" : ""}`}>
                     <span aria-hidden="true">@</span>
                     <input
+                      ref={emailInputRef}
                       form={paymentProvider === "soleaspay" ? "soleaspay-checkout-v3" : undefined}
                       type="email"
                       value={email}
-                      onChange={(event) => setEmail(event.target.value.replace(/\s/g, ""))}
+                      onChange={(event) => {
+                        const nextVal = event.target.value.replace(/\s/g, "");
+                        setEmail(nextVal);
+                        if (emailError && EMAIL_PATTERN.test(nextVal)) {
+                          setEmailError(false);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!email.trim() || !EMAIL_PATTERN.test(email)) {
+                          setEmailError(true);
+                        }
+                      }}
                       placeholder={t.emailPlaceholder}
                       inputMode="email"
                       pattern={EMAIL_PATTERN.source}
                       autoComplete="email"
                       required
+                      autoFocus
                     />
                   </div>
+                  {emailError && (
+                    <div className="field-error-notice" role="alert">
+                      <AlertCircle size={14} />
+                      <span>{t.emailRequiredWarning}</span>
+                    </div>
+                  )}
                 </label>
 
                 <div className="payment-provider-selector">
@@ -903,7 +943,13 @@ export default function Home() {
                       className={`payment-provider-option${paymentProvider === "soleaspay" ? " selected" : ""}`}
                       role="radio"
                       aria-checked={paymentProvider === "soleaspay"}
-                      onClick={() => setPaymentProvider("soleaspay")}
+                      onClick={() => {
+                        if (!email.trim() || !EMAIL_PATTERN.test(email)) {
+                          setEmailError(true);
+                          emailInputRef.current?.focus();
+                        }
+                        setPaymentProvider("soleaspay");
+                      }}
                     >
                       <span className="payment-provider-badge">{t.recommended}</span>
                       <span className="payment-logo-wrap" aria-hidden="true">
@@ -924,7 +970,13 @@ export default function Home() {
                       className={`payment-provider-option${paymentProvider === "sebpay" ? " selected" : ""}`}
                       role="radio"
                       aria-checked={paymentProvider === "sebpay"}
-                      onClick={() => setPaymentProvider("sebpay")}
+                      onClick={() => {
+                        if (!email.trim() || !EMAIL_PATTERN.test(email)) {
+                          setEmailError(true);
+                          emailInputRef.current?.focus();
+                        }
+                        setPaymentProvider("sebpay");
+                      }}
                     >
                       <span className="payment-logo-wrap" aria-hidden="true">
                         <Image
@@ -957,6 +1009,11 @@ export default function Home() {
                     dialCode={dialCode}
                     email={email}
                     coins={deliveredCoins}
+                    isEmailValid={Boolean(email.trim() && EMAIL_PATTERN.test(email))}
+                    onRequireEmail={() => {
+                      setEmailError(true);
+                      emailInputRef.current?.focus();
+                    }}
                   />
                 )}
 
@@ -964,8 +1021,15 @@ export default function Home() {
                   <button
                     type="button"
                     className="modal-primary"
-                    disabled={!EMAIL_PATTERN.test(email) || !paymentOrderId}
-                    onClick={() => setStep(4)}
+                    disabled={!paymentOrderId}
+                    onClick={() => {
+                      if (!email.trim() || !EMAIL_PATTERN.test(email)) {
+                        setEmailError(true);
+                        emailInputRef.current?.focus();
+                        return;
+                      }
+                      setStep(4);
+                    }}
                   >
                     {t.continue} <ArrowRight size={18} />
                   </button>
