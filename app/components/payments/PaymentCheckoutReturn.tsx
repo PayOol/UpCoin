@@ -19,11 +19,21 @@ import {
   ShieldCheck,
   Sun,
   UserRound,
+  Volume2,
+  VolumeX,
   WalletCards,
   XCircle,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  isSoundEnabled,
+  playFailure,
+  playSuccess,
+  playTap,
+  playToggle,
+  toggleSound,
+} from "@/app/lib/sound";
 import { getAssetPath } from "@/app/lib/asset-path";
 import {
   LEGACY_PAYMENT_PENDING_CHECKOUT_KEYS,
@@ -369,6 +379,12 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
     document.documentElement.lang = language;
   }, [language]);
 
+  const soundEnabled = useSyncExternalStore(
+    subscribeToPreferences,
+    isSoundEnabled,
+    () => true,
+  );
+
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
@@ -536,22 +552,14 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
     });
   }, [outcome]);
 
-  useEffect(() => {
-    if (
-      returnState.phase === "received" &&
-      returnState.resolvedOutcome === "success" &&
-      returnState.confirmed &&
-      returnState.pendingCheckout
-    ) {
-      sendOrderEmail(returnState.pendingCheckout);
-    }
-  }, [returnState]);
+  const pageSoundPlayedRef = useRef(false);
+  const emailSentRef = useRef(false);
 
   const t = copy[language];
   const isLoading = returnState.phase === "loading";
   const hasOrder = returnState.pendingCheckout !== null;
-  const isSuccess = returnState.resolvedOutcome === "success";
-  const isPendingOrder = hasOrder && returnState.resolvedOutcome === null;
+  const isSuccess = returnState.resolvedOutcome === "success" || outcome === "success";
+  const isPendingOrder = hasOrder && returnState.resolvedOutcome === null && outcome !== "success" && outcome !== "failure";
   const statusTone = isLoading || isPendingOrder ? "pending" : isSuccess ? "success" : "failure";
   const shouldReturnHome = isSuccess || isPendingOrder || !hasOrder;
   const canDownloadReceipt = isSuccess && hasOrder && returnState.phase !== "invalid";
@@ -570,7 +578,35 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
         ? t.pendingMessage
         : isSuccess ? t.successMessage : t.failureMessage;
 
+  // Déclenchement automatique du son de statut dès le chargement de la page
+  useEffect(() => {
+    if (pageSoundPlayedRef.current) return;
+
+    if (outcome === "success" || isSuccess) {
+      pageSoundPlayedRef.current = true;
+      playSuccess();
+    } else if (outcome === "failure" || (!isLoading && statusTone === "failure")) {
+      pageSoundPlayedRef.current = true;
+      playFailure();
+    }
+  }, [outcome, isSuccess, isLoading, statusTone]);
+
+  // Envoi de l'e-mail de confirmation de commande
+  useEffect(() => {
+    if (
+      !emailSentRef.current &&
+      returnState.phase === "received" &&
+      returnState.resolvedOutcome === "success" &&
+      returnState.confirmed &&
+      returnState.pendingCheckout
+    ) {
+      emailSentRef.current = true;
+      sendOrderEmail(returnState.pendingCheckout);
+    }
+  }, [returnState]);
+
   function updateTheme(nextTheme: Theme): void {
+    playToggle(nextTheme === "dark");
     try {
       window.localStorage.setItem("upcoin-theme", nextTheme);
       window.dispatchEvent(new Event(PREFERENCE_CHANGE_EVENT));
@@ -582,6 +618,7 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
   async function downloadReceipt(): Promise<void> {
     if (!returnState.pendingCheckout || !canDownloadReceipt || isGeneratingReceipt) return;
 
+    playTap();
     setReceiptError(false);
     setIsGeneratingReceipt(true);
     try {
@@ -622,7 +659,16 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
         </Link>
 
         <div className="payment-return-header-actions">
-          <Link className="payment-return-back" href="/#packs">
+          <button
+            type="button"
+            className="payment-return-sound-toggle"
+            onClick={() => toggleSound()}
+            aria-label={soundEnabled ? (language === "fr" ? "Couper le son" : "Mute sounds") : (language === "fr" ? "Activer les sons" : "Enable sound")}
+            title={soundEnabled ? (language === "fr" ? "Couper le son" : "Mute sounds") : (language === "fr" ? "Activer les sons" : "Enable sound")}
+          >
+            {soundEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
+          </button>
+          <Link className="payment-return-back" href="/#packs" onClick={() => playTap()}>
             <ArrowLeft size={15} aria-hidden="true" />
             <span>{t.back}</span>
           </Link>
@@ -695,6 +741,7 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
                 <Link
                   className={canDownloadReceipt ? "payment-return-secondary-action" : "payment-return-primary-action"}
                   href={shouldReturnHome ? "/" : "/#packs"}
+                  onClick={() => playTap()}
                 >
                   {shouldReturnHome ? <Home size={18} aria-hidden="true" /> : <RefreshCw size={18} aria-hidden="true" />}
                   <span>{shouldReturnHome ? t.home : t.retry}</span>

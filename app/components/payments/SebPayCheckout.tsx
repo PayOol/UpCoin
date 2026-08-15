@@ -12,6 +12,7 @@ import {
 } from "@/app/lib/payments/payment-contract";
 import { rememberPendingPayment } from "@/app/lib/payments/payment-history";
 import { getAssetPath } from "@/app/lib/asset-path";
+import { playFailure, playSuccess, playTap } from "@/app/lib/sound";
 import {
   calculateSebPayFee,
   createSebPayCollection,
@@ -171,10 +172,16 @@ export function SebPayCheckout({
 
   function updateUiState(nextState: "form" | "processing" | "success" | "failed"): void {
     setUiState(nextState);
+    if (nextState === "success") {
+      playSuccess();
+    } else if (nextState === "failed") {
+      playFailure();
+    }
     onStateChange?.(nextState);
   }
 
   async function copyUssdCode(code: string): Promise<void> {
+    playTap();
     try {
       await navigator.clipboard.writeText(code);
       setCopiedUssd(true);

@@ -26,11 +26,24 @@ import {
   ShoppingBag,
   Sparkles,
   Sun,
+  Volume2,
+  VolumeX,
   X,
   XCircle,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  isSoundEnabled,
+  playError,
+  playModalClose,
+  playModalOpen,
+  playPop,
+  playStep,
+  playTap,
+  playToggle,
+  toggleSound,
+} from "@/app/lib/sound";
 import { SebPayCheckout } from "@/app/components/payments/SebPayCheckout";
 import { SoleasPayCheckoutV3 } from "@/app/components/payments/SoleasPayCheckoutV3";
 import { getAssetPath } from "@/app/lib/asset-path";
@@ -96,6 +109,9 @@ const copy = {
     english: "Anglais",
     enableDark: "Activer le mode sombre",
     enableLight: "Activer le mode clair",
+    enableSound: "Activer les sons d'interaction",
+    muteSound: "Couper le son",
+    sound: "Effets sonores",
     account: "Compte",
     purchasedCoins: "{count} pièces achetées",
     contactWhatsapp: "Contacter UpCoin sur WhatsApp",
@@ -188,6 +204,9 @@ const copy = {
     english: "English",
     enableDark: "Enable dark mode",
     enableLight: "Enable light mode",
+    enableSound: "Enable interaction sounds",
+    muteSound: "Mute sounds",
+    sound: "Sound effects",
     account: "Account",
     purchasedCoins: "{count} coins purchased",
     contactWhatsapp: "Contact UpCoin on WhatsApp",
@@ -302,6 +321,11 @@ export default function Home() {
     subscribeToPreferences,
     getThemePreference,
     (): Theme => "light",
+  );
+  const soundEnabled = useSyncExternalStore(
+    subscribeToPreferences,
+    isSoundEnabled,
+    () => true,
   );
   const [selectedPack, setSelectedPack] = useState<Pack>(packs[2]);
   const [customCoins, setCustomCoins] = useState(0);
@@ -445,6 +469,7 @@ export default function Home() {
   const deliveredCoins = selectedPack.coins + (selectedPack.bonus ?? 0);
 
   const closeCheckout = () => {
+    playModalClose();
     setCheckoutOpen(false);
     setStep(1);
     setInstructionsAccepted(false);
@@ -461,6 +486,7 @@ export default function Home() {
   };
 
   const openCheckout = () => {
+    playModalOpen();
     setStep(1);
     setInstructionsAccepted(false);
     setInstructionsError(false);
@@ -475,6 +501,7 @@ export default function Home() {
   };
 
   const selectPack = (pack: Pack) => {
+    playTap();
     setSelectedPack(pack);
     setCustomCoins(0);
     setStep(1);
@@ -494,6 +521,7 @@ export default function Home() {
     const rawDigits = typeof value === "string" ? value.replace(/\D/g, "") : String(value).replace(/\D/g, "");
     const safeValue = rawDigits ? Math.min(1000000, parseInt(rawDigits, 10)) : 0;
     setCustomCoins(safeValue);
+    playPop(safeValue >= 70 ? 1.1 : 0.9);
 
     if (safeValue >= 70) {
       setSelectedPack({
@@ -585,9 +613,11 @@ export default function Home() {
 
   const handleStep1Continue = () => {
     if (!instructionsAccepted) {
+      playError();
       setInstructionsError(true);
       return;
     }
+    playStep(true);
     setInstructionsError(false);
     setStep(2);
   };
@@ -598,6 +628,7 @@ export default function Home() {
     const isWhatsappValid = whatsapp.replace(/\D/g, "").length >= 6;
 
     if (!isUsernameValid || !isPasswordValid || !isWhatsappValid) {
+      playError();
       if (!isUsernameValid) setUsernameError(true);
       if (!isPasswordValid) setPasswordError(true);
       if (!isWhatsappValid) setWhatsappError(true);
@@ -612,6 +643,7 @@ export default function Home() {
       return;
     }
 
+    playStep(true);
     openPaymentStep();
   };
 
@@ -625,13 +657,17 @@ export default function Home() {
           <button
             type="button"
             className="menu-trigger"
-            onClick={() => setSideNavOpen(!sideNavOpen)}
+            onClick={() => {
+              if (!sideNavOpen) playModalOpen();
+              else playModalClose();
+              setSideNavOpen(!sideNavOpen);
+            }}
             aria-label={t.mainMenu}
             aria-expanded={sideNavOpen}
           >
             {sideNavOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
-          <a className="store-brand" href="#packs" aria-label={t.brandLabel}>
+          <a className="store-brand" href="#packs" onClick={() => playTap()} aria-label={t.brandLabel}>
             <Image src={getAssetPath("/logo.png")} alt="UpCoin" width={34} height={34} priority />
             <span className="brand-title" aria-hidden="true">
               <span className="brand-p">p</span>
@@ -643,8 +679,22 @@ export default function Home() {
         <div className="header-right">
           <button
             type="button"
+            className="sound-toggle"
+            onClick={() => toggleSound()}
+            aria-label={soundEnabled ? t.muteSound : t.enableSound}
+            title={soundEnabled ? t.muteSound : t.enableSound}
+            aria-pressed={soundEnabled}
+          >
+            {soundEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
+          </button>
+
+          <button
+            type="button"
             className="lang-switcher"
-            onClick={() => savePreference("upcoin-language", language === "fr" ? "en" : "fr")}
+            onClick={() => {
+              playToggle(language === "en");
+              savePreference("upcoin-language", language === "fr" ? "en" : "fr");
+            }}
             aria-label={language === "fr" ? t.english : t.french}
             title={language === "fr" ? t.english : t.french}
           >
@@ -656,7 +706,10 @@ export default function Home() {
           <button
             type="button"
             className="theme-toggle"
-            onClick={() => savePreference("upcoin-theme", theme === "light" ? "dark" : "light")}
+            onClick={() => {
+              playToggle(theme === "light");
+              savePreference("upcoin-theme", theme === "light" ? "dark" : "light");
+            }}
             aria-label={theme === "light" ? t.enableDark : t.enableLight}
             title={theme === "light" ? t.enableDark : t.enableLight}
             aria-pressed={theme === "dark"}
@@ -666,6 +719,7 @@ export default function Home() {
 
           <a
             href="#history"
+            onClick={() => playTap()}
             className="header-coins-counter"
             aria-label={t.purchasedCoins.replace("{count}", formatNumber(purchasedCoins, language))}
             title={t.purchasedCoins.replace("{count}", formatNumber(purchasedCoins, language))}
@@ -686,13 +740,23 @@ export default function Home() {
           <button
             type="button"
             className="sidenav-backdrop"
-            onClick={() => setSideNavOpen(false)}
+            onClick={() => {
+              playModalClose();
+              setSideNavOpen(false);
+            }}
             aria-label={t.close}
           />
           <nav className="sidenav-drawer" aria-label={t.mainMenu}>
             <div className="sidenav-header">
               <span className="sidenav-title">{t.menu}</span>
-              <button type="button" onClick={() => setSideNavOpen(false)} aria-label={t.close}>
+              <button
+                type="button"
+                onClick={() => {
+                  playModalClose();
+                  setSideNavOpen(false);
+                }}
+                aria-label={t.close}
+              >
                 <X size={18} />
               </button>
             </div>
@@ -700,7 +764,10 @@ export default function Home() {
               <button
                 type="button"
                 className={`sidenav-link${activeSection === "packs" && !supportOpen ? " active" : ""}`}
-                onClick={() => handleNavigateSection("packs")}
+                onClick={() => {
+                  playTap();
+                  handleNavigateSection("packs");
+                }}
               >
                 <ShoppingBag size={18} />
                 <span>{t.rechargeCoins}</span>
@@ -708,7 +775,10 @@ export default function Home() {
               <button
                 type="button"
                 className={`sidenav-link${activeSection === "history" && !supportOpen ? " active" : ""}`}
-                onClick={() => handleNavigateSection("history")}
+                onClick={() => {
+                  playTap();
+                  handleNavigateSection("history");
+                }}
               >
                 <History size={18} />
                 <span>{t.myOrders} ({orders.length})</span>
@@ -718,11 +788,20 @@ export default function Home() {
                 className={`sidenav-link${supportOpen ? " active" : ""}`}
                 onClick={() => {
                   setSideNavOpen(false);
+                  playModalOpen();
                   setSupportOpen(true);
                 }}
               >
                 <Headphones size={18} />
                 <span>{t.support}</span>
+              </button>
+              <button
+                type="button"
+                className="sidenav-link"
+                onClick={() => toggleSound()}
+              >
+                {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                <span>{soundEnabled ? t.muteSound : t.enableSound}</span>
               </button>
             </div>
           </nav>
@@ -987,6 +1066,7 @@ export default function Home() {
                     checked={instructionsAccepted}
                     onChange={(event) => {
                       const isChecked = event.target.checked;
+                      playToggle(isChecked);
                       setInstructionsAccepted(isChecked);
                       if (instructionsError && isChecked) {
                         setInstructionsError(false);
@@ -1019,7 +1099,14 @@ export default function Home() {
 
             {step === 2 && (
               <div className="checkout-step step-form">
-                <button type="button" className="back-button" onClick={() => setStep(1)}>
+                <button
+                  type="button"
+                  className="back-button"
+                  onClick={() => {
+                    playStep(false);
+                    setStep(1);
+                  }}
+                >
                   <ArrowLeft size={15} /> {t.back}
                 </button>
 
@@ -1090,7 +1177,10 @@ export default function Home() {
                       <button
                         type="button"
                         className="toggle-password"
-                        onClick={() => setShowPassword(!showPassword)}
+                        onClick={() => {
+                          playToggle(!showPassword);
+                          setShowPassword(!showPassword);
+                        }}
                         aria-label={showPassword ? (language === "fr" ? "Masquer le mot de passe" : "Hide password") : (language === "fr" ? "Afficher le mot de passe" : "Show password")}
                       >
                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -1181,7 +1271,14 @@ export default function Home() {
 
             {step === 3 && (
               <div className="checkout-step">
-                <button type="button" className="back-button" onClick={() => setStep(2)}>
+                <button
+                  type="button"
+                  className="back-button"
+                  onClick={() => {
+                    playStep(false);
+                    setStep(2);
+                  }}
+                >
                   <ArrowLeft size={15} /> {t.back}
                 </button>
                 <span className="modal-kicker">{formatProgress(t.progress, 3, checkoutTotalSteps)}</span>
@@ -1242,6 +1339,7 @@ export default function Home() {
                       role="radio"
                       aria-checked={paymentProvider === "soleaspay"}
                       onClick={() => {
+                        playTap();
                         if (!email.trim() || !EMAIL_PATTERN.test(email)) {
                           setEmailError(true);
                           emailInputRef.current?.focus();
@@ -1268,6 +1366,7 @@ export default function Home() {
                       role="radio"
                       aria-checked={paymentProvider === "sebpay"}
                       onClick={() => {
+                        playTap();
                         if (!email.trim() || !EMAIL_PATTERN.test(email)) {
                           setEmailError(true);
                           emailInputRef.current?.focus();
@@ -1321,10 +1420,12 @@ export default function Home() {
                     disabled={!paymentOrderId}
                     onClick={() => {
                       if (!email.trim() || !EMAIL_PATTERN.test(email)) {
+                        playError();
                         setEmailError(true);
                         emailInputRef.current?.focus();
                         return;
                       }
+                      playStep(true);
                       setStep(4);
                     }}
                   >
@@ -1338,7 +1439,14 @@ export default function Home() {
               <div className={`checkout-step step-form${sebpayState !== "form" ? " is-processing" : ""}`}>
                 {sebpayState === "form" && (
                   <>
-                    <button type="button" className="back-button" onClick={() => setStep(3)}>
+                    <button
+                      type="button"
+                      className="back-button"
+                      onClick={() => {
+                        playStep(false);
+                        setStep(3);
+                      }}
+                    >
                       <ArrowLeft size={15} /> {t.back}
                     </button>
                     <span className="modal-kicker">{formatProgress(t.progress, 4, 4)}</span>
@@ -1371,13 +1479,21 @@ export default function Home() {
         <div
           className="support-overlay"
           role="presentation"
-          onMouseDown={(event) => event.target === event.currentTarget && setSupportOpen(false)}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              playModalClose();
+              setSupportOpen(false);
+            }
+          }}
         >
           <section className="support-modal" role="dialog" aria-modal="true" aria-labelledby="support-modal-title">
             <button
               type="button"
               className="close-support"
-              onClick={() => setSupportOpen(false)}
+              onClick={() => {
+                playModalClose();
+                setSupportOpen(false);
+              }}
               aria-label={t.close}
             >
               <X size={18} />
@@ -1445,7 +1561,10 @@ export default function Home() {
               <button
                 type="button"
                 className="modal-secondary"
-                onClick={() => setSupportOpen(false)}
+                onClick={() => {
+                  playModalClose();
+                  setSupportOpen(false);
+                }}
               >
                 {t.close}
               </button>
@@ -1459,6 +1578,7 @@ export default function Home() {
         href="https://wa.me/237690928237"
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() => playTap()}
         aria-label={t.contactWhatsapp}
         title={t.contactWhatsapp}
       >
