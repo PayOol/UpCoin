@@ -138,9 +138,12 @@ const copy = {
     optional: "optionnel",
     required: "obligatoire",
     usernamePlaceholder: "pseudo ou email",
+    usernameRequiredWarning: "Veuillez renseigner votre identifiant TikTok.",
+    passwordRequiredWarning: "Veuillez saisir votre mot de passe (au moins 4 caractères).",
     whatsapp: "Numéro WhatsApp",
     whatsappHint: "Pour vous contacter en cas de besoin",
     whatsappPlaceholder: "6 00 00 00 00",
+    whatsappRequiredWarning: "Veuillez renseigner un numéro WhatsApp valide.",
     emailAddress: "Adresse e-mail",
     emailPlaceholder: "client@exemple.com",
     emailRequiredWarning: "Veuillez renseigner une adresse e-mail valide avant de continuer.",
@@ -211,9 +214,12 @@ const copy = {
     optional: "optional",
     required: "required",
     usernamePlaceholder: "your TikTok username",
+    usernameRequiredWarning: "Please enter your TikTok username.",
+    passwordRequiredWarning: "Please enter your password (at least 4 characters).",
     whatsapp: "WhatsApp number",
     whatsappHint: "So we can contact you about the order",
     whatsappPlaceholder: "6 00 00 00 00",
+    whatsappRequiredWarning: "Please enter a valid WhatsApp number.",
     emailAddress: "Email address",
     emailPlaceholder: "customer@example.com",
     emailRequiredWarning: "Please enter a valid email address before continuing.",
@@ -267,9 +273,15 @@ export default function Home() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [instructionsAccepted, setInstructionsAccepted] = useState(false);
   const [username, setUsername] = useState("");
+  const [usernameError, setUsernameError] = useState(false);
+  const usernameInputRef = useRef<HTMLInputElement>(null);
   const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState(false);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [whatsapp, setWhatsapp] = useState("");
+  const [whatsappError, setWhatsappError] = useState(false);
+  const whatsappInputRef = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState(false);
   const emailInputRef = useRef<HTMLInputElement>(null);
@@ -322,6 +334,12 @@ export default function Home() {
   }, [checkoutOpen, sideNavOpen]);
 
   useEffect(() => {
+    if (step === 2) {
+      const timer = setTimeout(() => {
+        usernameInputRef.current?.focus();
+      }, 60);
+      return () => clearTimeout(timer);
+    }
     if (step === 3) {
       const timer = setTimeout(() => {
         emailInputRef.current?.focus();
@@ -344,6 +362,9 @@ export default function Home() {
     setPaymentOrderId("");
     setEmail("");
     setEmailError(false);
+    setUsernameError(false);
+    setPasswordError(false);
+    setWhatsappError(false);
     setCheckoutOpen(true);
   };
 
@@ -373,6 +394,9 @@ export default function Home() {
     setPaymentOrderId("");
     setEmail("");
     setEmailError(false);
+    setUsernameError(false);
+    setPasswordError(false);
+    setWhatsappError(false);
     setCheckoutOpen(true);
   };
 
@@ -382,6 +406,9 @@ export default function Home() {
     setPaymentOrderId("");
     setEmail("");
     setEmailError(false);
+    setUsernameError(false);
+    setPasswordError(false);
+    setWhatsappError(false);
     setPassword("");
     setShowPassword(false);
   };
@@ -393,6 +420,29 @@ export default function Home() {
     setTimeout(() => {
       emailInputRef.current?.focus();
     }, 60);
+  };
+
+  const handleStep2Continue = () => {
+    const isUsernameValid = username.trim().replace(/^@/, "").length >= 2;
+    const isPasswordValid = password.length >= 4;
+    const isWhatsappValid = whatsapp.replace(/\D/g, "").length >= 6;
+
+    if (!isUsernameValid || !isPasswordValid || !isWhatsappValid) {
+      if (!isUsernameValid) setUsernameError(true);
+      if (!isPasswordValid) setPasswordError(true);
+      if (!isWhatsappValid) setWhatsappError(true);
+
+      if (!isUsernameValid) {
+        usernameInputRef.current?.focus();
+      } else if (!isPasswordValid) {
+        passwordInputRef.current?.focus();
+      } else if (!isWhatsappValid) {
+        whatsappInputRef.current?.focus();
+      }
+      return;
+    }
+
+    openPaymentStep();
   };
 
   const checkoutTotalSteps = paymentProvider === "sebpay" ? 4 : 3;
@@ -789,24 +839,54 @@ export default function Home() {
                 <div className="fields-row">
                   <label className="field-label">
                     <span>{t.tiktokUsername} <span className="required">*</span></span>
-                    <div className="field">
+                    <div className={`field${usernameError ? " field-error" : ""}`}>
                       <span>@</span>
                       <input
+                        ref={usernameInputRef}
                         value={username}
-                        onChange={(event) => setUsername(event.target.value.replace(/^@/, ""))}
+                        onChange={(event) => {
+                          const val = event.target.value.replace(/^@/, "");
+                          setUsername(val);
+                          if (usernameError && val.trim().length >= 2) {
+                            setUsernameError(false);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (username.trim().replace(/^@/, "").length < 2) {
+                            setUsernameError(true);
+                          }
+                        }}
                         placeholder={t.usernamePlaceholder}
                         autoComplete="off"
                       />
                     </div>
+                    {usernameError && (
+                      <div className="field-error-notice" role="alert">
+                        <AlertCircle size={13} />
+                        <span>{t.usernameRequiredWarning}</span>
+                      </div>
+                    )}
                   </label>
                   <label className="field-label">
                     <span>{t.password} <span className="required">*</span></span>
-                    <div className="field field-password">
+                    <div className={`field field-password${passwordError ? " field-error" : ""}`}>
                       <span><LockKeyhole size={16} /></span>
                       <input
+                        ref={passwordInputRef}
                         type={showPassword ? "text" : "password"}
                         value={password}
-                        onChange={(event) => setPassword(event.target.value)}
+                        onChange={(event) => {
+                          const val = event.target.value;
+                          setPassword(val);
+                          if (passwordError && val.length >= 4) {
+                            setPasswordError(false);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (password.length < 4) {
+                            setPasswordError(true);
+                          }
+                        }}
                         placeholder="••••••••"
                         autoComplete="current-password"
                       />
@@ -819,6 +899,12 @@ export default function Home() {
                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
                     </div>
+                    {passwordError && (
+                      <div className="field-error-notice" role="alert">
+                        <AlertCircle size={13} />
+                        <span>{t.passwordRequiredWarning}</span>
+                      </div>
+                    )}
                   </label>
                 </div>
 
@@ -827,7 +913,7 @@ export default function Home() {
                     {t.whatsapp} <span className="required">*</span>{" "}
                     <span className="field-hint">— {t.whatsappHint}</span>
                   </span>
-                  <div className="field country-phone-field">
+                  <div className={`field country-phone-field${whatsappError ? " field-error" : ""}`}>
                     <select
                       className="country-select"
                       value={countryCode}
@@ -856,9 +942,21 @@ export default function Home() {
                       </optgroup>
                     </select>
                     <input
+                      ref={whatsappInputRef}
                       type="tel"
                       value={whatsapp}
-                      onChange={(event) => setWhatsapp(event.target.value.replace(/\D/g, ""))}
+                      onChange={(event) => {
+                        const val = event.target.value.replace(/\D/g, "");
+                        setWhatsapp(val);
+                        if (whatsappError && val.length >= 6) {
+                          setWhatsappError(false);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (whatsapp.replace(/\D/g, "").length < 6) {
+                          setWhatsappError(true);
+                        }
+                      }}
                       placeholder={t.whatsappPlaceholder}
                       inputMode="numeric"
                       pattern="[0-9]*"
@@ -866,13 +964,18 @@ export default function Home() {
                       required
                     />
                   </div>
+                  {whatsappError && (
+                    <div className="field-error-notice" role="alert">
+                      <AlertCircle size={13} />
+                      <span>{t.whatsappRequiredWarning}</span>
+                    </div>
+                  )}
                 </label>
 
                 <button
                   type="button"
                   className="modal-primary"
-                  disabled={!canContinue}
-                  onClick={openPaymentStep}
+                  onClick={handleStep2Continue}
                 >
                   {t.continue} <ArrowRight size={18} />
                 </button>

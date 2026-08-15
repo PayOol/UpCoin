@@ -725,6 +725,15 @@ a { color: inherit; text-decoration: none; }
   gap: 7px;
   animation: fieldErrorFadeIn 0.2s ease-out;
 }
+.fields-row .field-error-notice {
+  padding: 6px 8px;
+  font-size: 10px;
+  gap: 5px;
+  line-height: 1.35;
+}
+.fields-row .field-error-notice svg {
+  flex-shrink: 0;
+}
 @keyframes fieldShake {
   10%, 90% { transform: translate3d(-1px, 0, 0); }
   20%, 80% { transform: translate3d(2px, 0, 0); }
