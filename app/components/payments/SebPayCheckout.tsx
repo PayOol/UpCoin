@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { Check, Copy, ExternalLink, LoaderCircle, RotateCw, X } from "lucide-react";
+import { Check, Copy, ExternalLink, Info, LoaderCircle, RotateCw, X } from "lucide-react";
 import {
   PAYMENT_EMAIL_DATA_KEY,
   PAYMENT_PENDING_CHECKOUT_KEY,
@@ -54,6 +54,7 @@ const copy = {
     submitting: "Paiement en cours… Consultez votre téléphone.",
     processingTitle: "Paiement en cours...",
     processingDesc: "Veuillez consulter votre téléphone pour valider le paiement. Cette opération peut prendre quelques instants.",
+    processingWarning: "Ne fermez pas cette fenêtre pendant la validation.",
     successTitle: "Paiement réussi !",
     successDesc: "Votre paiement a été validé avec succès. Redirection vers la confirmation...",
     failedTitle: "Échec du paiement",
@@ -83,6 +84,7 @@ const copy = {
     submitting: "Payment in progress… Check your phone.",
     processingTitle: "Payment in progress...",
     processingDesc: "Please check your phone to validate the payment. This operation may take a few moments.",
+    processingWarning: "Do not close this window during validation.",
     successTitle: "Payment successful!",
     successDesc: "Your payment has been successfully validated. Redirecting...",
     failedTitle: "Payment failed",
@@ -444,6 +446,13 @@ export function SebPayCheckout({
           {uiState === "success" && t.successDesc}
           {uiState === "failed" && t.failedDesc}
         </p>
+
+        {uiState === "processing" && (
+          <div className="sebpay-status-warning-badge" role="alert">
+            <Info size={14} aria-hidden="true" />
+            <span>{t.processingWarning}</span>
+          </div>
+        )}
 
         {uiState === "processing" && providerLink && (
           <a
