@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Clock3,
   Coins,
+  ExternalLink,
   Eye,
   EyeOff,
   Globe,
@@ -36,12 +37,15 @@ import { getAssetPath } from "@/app/lib/asset-path";
 import { packs, type Pack } from "@/app/lib/catalog";
 import type { PaymentProvider } from "@/app/lib/payments/payment-contract";
 import {
+  finalizePaymentHistory,
   getPaymentHistoryServerSnapshot,
   getPaymentHistorySnapshot,
   parsePaymentHistory,
+  paymentHistoryEntryToCheckout,
   paymentHistoryHref,
   subscribeToPaymentHistory,
 } from "@/app/lib/payments/payment-history";
+import { getSebPayCollection } from "@/app/lib/payments/sebpay-contract";
 import {
   ALL_COUNTRIES,
   POPULAR_COUNTRIES,
@@ -100,6 +104,19 @@ const copy = {
     rechargeCoins: "Recharger des pièces",
     myOrders: "Mes commandes",
     support: "Assistance et support",
+    supportModalTitle: "Assistance & Support",
+    supportSubtitle: "Besoin d'aide avec votre commande ou votre recharge ? Notre équipe est à votre disposition 7j/7.",
+    supportBadge: "Service client",
+    whatsappSupportTitle: "Support WhatsApp direct",
+    onlineSupport: "En ligne 7j/7 · Réponse rapide",
+    contactWhatsappBtn: "Discuter sur WhatsApp",
+    faqTitle: "Questions fréquentes",
+    faqDelivery: "Délai de réception des pièces",
+    faqDeliveryAns: "Vos pièces TikTok sont créditées en 5 à 15 minutes dès confirmation du paiement.",
+    faqSecurity: "Sécurité du compte",
+    faqSecurityAns: "Vos identifiants sont strictement confidentiels et uniquement utilisés pour livrer votre recharge.",
+    faqOrderIssue: "Commande en attente ou réclamation",
+    faqOrderIssueAns: "Munissez-vous de votre référence de commande et contactez notre support sur WhatsApp.",
     rechargeTikTok: "Recharge TikTok",
     choosePack: "Choisissez votre pack",
     availablePacks: "Forfaits disponibles",
@@ -179,6 +196,19 @@ const copy = {
     rechargeCoins: "Recharge coins",
     myOrders: "My orders",
     support: "Help and support",
+    supportModalTitle: "Help & Support",
+    supportSubtitle: "Need help with your order or coin recharge? Our team is available 7 days a week.",
+    supportBadge: "Customer service",
+    whatsappSupportTitle: "Direct WhatsApp support",
+    onlineSupport: "Online 7/7 · Fast response",
+    contactWhatsappBtn: "Chat on WhatsApp",
+    faqTitle: "Frequently Asked Questions",
+    faqDelivery: "Coin delivery time",
+    faqDeliveryAns: "Your TikTok coins are credited within 5 to 15 minutes after payment confirmation.",
+    faqSecurity: "Account security",
+    faqSecurityAns: "Your credentials are kept strictly confidential and only used to deliver your order.",
+    faqOrderIssue: "Pending order or issue",
+    faqOrderIssueAns: "Keep your order reference ready and reach out to our WhatsApp support team.",
     rechargeTikTok: "TikTok recharge",
     choosePack: "Choose your pack",
     availablePacks: "Available packs",
@@ -298,6 +328,8 @@ export default function Home() {
   const [paymentProvider, setPaymentProvider] = useState<PaymentProvider>("soleaspay");
   const [sebpayState, setSebpayState] = useState<"form" | "processing" | "success" | "failed">("form");
   const [sideNavOpen, setSideNavOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<"packs" | "history">("packs");
   const paymentHistorySnapshot = useSyncExternalStore(
     subscribeToPaymentHistory,
     getPaymentHistorySnapshot,
@@ -322,6 +354,82 @@ export default function Home() {
     document.documentElement.style.colorScheme = theme;
   }, [theme]);
 
+  // Synchronisation silencieuse en arrière-plan des transactions SebPay en attente
+  useEffect(() => {
+    const pendingSebPayOrders = orders.filter(
+      (order) => order.provider === "sebpay" && order.status === "pending",
+    );
+
+    if (pendingSebPayOrders.length === 0) return;
+
+    let isMounted = true;
+    let isChecking = false;
+
+    const checkPendingTransactions = async () => {
+      if (isChecking || typeof document === "undefined" || document.visibilityState === "hidden") {
+        return;
+      }
+      isChecking = true;
+
+      try {
+        for (const order of pendingSebPayOrders) {
+          if (!isMounted) break;
+          const ref = order.transactionReference || order.orderId;
+          if (!ref) continue;
+
+          try {
+            const payment = await getSebPayCollection(ref);
+            if (!isMounted) break;
+
+            if (payment.status === "success") {
+              finalizePaymentHistory(
+                paymentHistoryEntryToCheckout(order),
+                "success",
+                {
+                  transactionReference: payment.transactionId ?? ref,
+                  providerStatus: payment.rawStatus,
+                  confirmed: true,
+                },
+              );
+            } else if (payment.status === "failed" || payment.status === "cancelled") {
+              finalizePaymentHistory(
+                paymentHistoryEntryToCheckout(order),
+                "failure",
+                {
+                  transactionReference: payment.transactionId ?? ref,
+                  providerStatus: payment.rawStatus,
+                },
+              );
+            }
+          } catch {
+            // Ignorer silencieusement pour ne jamais déranger l'utilisateur
+          }
+        }
+      } finally {
+        isChecking = false;
+      }
+    };
+
+    void checkPendingTransactions();
+
+    const interval = window.setInterval(() => {
+      void checkPendingTransactions();
+    }, 6000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void checkPendingTransactions();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [orders]);
+
   useEffect(() => {
     let isMounted = true;
     void detectUserCountry().then((detected) => {
@@ -334,33 +442,37 @@ export default function Home() {
     };
   }, []);
 
-  useEffect(() => {
-    document.body.style.overflow = checkoutOpen || sideNavOpen ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [checkoutOpen, sideNavOpen]);
-
-  useEffect(() => {
-    if (step === 2) {
-      const timer = setTimeout(() => {
-        usernameInputRef.current?.focus();
-      }, 60);
-      return () => clearTimeout(timer);
-    }
-    if (step === 3) {
-      const timer = setTimeout(() => {
-        emailInputRef.current?.focus();
-      }, 60);
-      return () => clearTimeout(timer);
-    }
-  }, [step]);
-
   const deliveredCoins = selectedPack.coins + (selectedPack.bonus ?? 0);
-  const canContinue =
-    username.trim().replace(/^@/, "").length >= 2 &&
-    password.length >= 4 &&
-    whatsapp.replace(/\D/g, "").length >= 6;
+
+  const closeCheckout = () => {
+    setCheckoutOpen(false);
+    setStep(1);
+    setInstructionsAccepted(false);
+    setInstructionsError(false);
+    setPaymentOrderId("");
+    setSebpayState("form");
+    setEmail("");
+    setEmailError(false);
+    setUsernameError(false);
+    setPasswordError(false);
+    setWhatsappError(false);
+    setPassword("");
+    setShowPassword(false);
+  };
+
+  const openCheckout = () => {
+    setStep(1);
+    setInstructionsAccepted(false);
+    setInstructionsError(false);
+    setPaymentOrderId("");
+    setSebpayState("form");
+    setEmail("");
+    setEmailError(false);
+    setUsernameError(false);
+    setPasswordError(false);
+    setWhatsappError(false);
+    setCheckoutOpen(true);
+  };
 
   const selectPack = (pack: Pack) => {
     setSelectedPack(pack);
@@ -398,35 +510,69 @@ export default function Home() {
     }
   };
 
-  const openCheckout = () => {
-    setStep(1);
-    setInstructionsAccepted(false);
-    setInstructionsError(false);
-    setPaymentOrderId("");
-    setSebpayState("form");
-    setEmail("");
-    setEmailError(false);
-    setUsernameError(false);
-    setPasswordError(false);
-    setWhatsappError(false);
-    setCheckoutOpen(true);
+  const handleNavigateSection = (sectionId: "packs" | "history") => {
+    setSideNavOpen(false);
+    if (checkoutOpen) {
+      closeCheckout();
+    }
+    setActiveSection(sectionId);
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   };
 
-  const closeCheckout = () => {
-    setCheckoutOpen(false);
-    setStep(1);
-    setInstructionsAccepted(false);
-    setInstructionsError(false);
-    setPaymentOrderId("");
-    setSebpayState("form");
-    setEmail("");
-    setEmailError(false);
-    setUsernameError(false);
-    setPasswordError(false);
-    setWhatsappError(false);
-    setPassword("");
-    setShowPassword(false);
-  };
+  useEffect(() => {
+    document.body.style.overflow = checkoutOpen || sideNavOpen || supportOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [checkoutOpen, sideNavOpen, supportOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (sideNavOpen) setSideNavOpen(false);
+        if (supportOpen) setSupportOpen(false);
+        if (checkoutOpen) closeCheckout();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [sideNavOpen, supportOpen, checkoutOpen]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const historyElement = document.getElementById("history");
+      if (historyElement) {
+        const rect = historyElement.getBoundingClientRect();
+        if (rect.top <= window.innerHeight * 0.45) {
+          setActiveSection("history");
+          return;
+        }
+      }
+      setActiveSection("packs");
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (step === 2) {
+      const timer = setTimeout(() => {
+        usernameInputRef.current?.focus();
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+    if (step === 3) {
+      const timer = setTimeout(() => {
+        emailInputRef.current?.focus();
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [step]);
 
   const openPaymentStep = () => {
     setPaymentOrderId(createPaymentOrderId());
@@ -551,18 +697,33 @@ export default function Home() {
               </button>
             </div>
             <div className="sidenav-links">
-              <a href="#packs" onClick={() => setSideNavOpen(false)}>
+              <button
+                type="button"
+                className={`sidenav-link${activeSection === "packs" && !supportOpen ? " active" : ""}`}
+                onClick={() => handleNavigateSection("packs")}
+              >
                 <ShoppingBag size={18} />
                 <span>{t.rechargeCoins}</span>
-              </a>
-              <a href="#history" onClick={() => setSideNavOpen(false)}>
+              </button>
+              <button
+                type="button"
+                className={`sidenav-link${activeSection === "history" && !supportOpen ? " active" : ""}`}
+                onClick={() => handleNavigateSection("history")}
+              >
                 <History size={18} />
                 <span>{t.myOrders} ({orders.length})</span>
-              </a>
-              <a href="#packs" onClick={() => setSideNavOpen(false)}>
+              </button>
+              <button
+                type="button"
+                className={`sidenav-link${supportOpen ? " active" : ""}`}
+                onClick={() => {
+                  setSideNavOpen(false);
+                  setSupportOpen(true);
+                }}
+              >
                 <Headphones size={18} />
                 <span>{t.support}</span>
-              </a>
+              </button>
             </div>
           </nav>
         </div>
@@ -1202,6 +1363,93 @@ export default function Home() {
                 />
               </div>
             )}
+          </section>
+        </div>
+      )}
+
+      {supportOpen && (
+        <div
+          className="support-overlay"
+          role="presentation"
+          onMouseDown={(event) => event.target === event.currentTarget && setSupportOpen(false)}
+        >
+          <section className="support-modal" role="dialog" aria-modal="true" aria-labelledby="support-modal-title">
+            <button
+              type="button"
+              className="close-support"
+              onClick={() => setSupportOpen(false)}
+              aria-label={t.close}
+            >
+              <X size={18} />
+            </button>
+
+            <div className="support-modal-header">
+              <div className="support-modal-badge">
+                <Headphones size={15} />
+                <span>{t.supportBadge}</span>
+              </div>
+              <h2 id="support-modal-title">{t.supportModalTitle}</h2>
+              <p>{t.supportSubtitle}</p>
+            </div>
+
+            <div className="support-modal-body">
+              <div className="support-whatsapp-card">
+                <div className="support-whatsapp-info">
+                  <div className="support-whatsapp-icon" aria-hidden="true">
+                    <FaWhatsapp size={26} />
+                  </div>
+                  <div>
+                    <strong>{t.whatsappSupportTitle}</strong>
+                    <span>+237 690 928 237 · {t.onlineSupport}</span>
+                  </div>
+                </div>
+                <a
+                  href="https://wa.me/237690928237?text=Bonjour%20UpCoin%2C%20j%27ai%20besoin%20d%27assistance%20concernant%20mes%20pi%C3%A8ces%20TikTok."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="support-whatsapp-button"
+                  aria-label={t.contactWhatsapp}
+                >
+                  <FaWhatsapp size={18} />
+                  <span>{t.contactWhatsappBtn}</span>
+                  <ExternalLink size={14} />
+                </a>
+              </div>
+
+              <div className="support-faq-section">
+                <h3>{t.faqTitle}</h3>
+                <div className="support-faq-list">
+                  <div className="support-faq-item">
+                    <strong>
+                      <Clock3 size={15} /> {t.faqDelivery}
+                    </strong>
+                    <p>{t.faqDeliveryAns}</p>
+                  </div>
+                  <div className="support-faq-item">
+                    <strong>
+                      <ShieldCheck size={15} /> {t.faqSecurity}
+                    </strong>
+                    <p>{t.faqSecurityAns}</p>
+                  </div>
+                  <div className="support-faq-item">
+                    <strong>
+                      <Info size={15} /> {t.faqOrderIssue}
+                    </strong>
+                    <p>{t.faqOrderIssueAns}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="support-modal-footer">
+              <button
+                type="button"
+                className="modal-secondary"
+                onClick={() => setSupportOpen(false)}
+              >
+                {t.close}
+              </button>
+            </div>
           </section>
         </div>
       )}
