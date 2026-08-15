@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import Image from "next/image";
 import { BASE_PATH, getAssetPath } from "@/app/lib/asset-path";
-import { RefreshCw, Sparkles, X } from "lucide-react";
+import { RefreshCw, X } from "lucide-react";
 
 interface VersionPayload {
   version: string;
@@ -184,7 +185,14 @@ export function PwaServiceWorker() {
     >
       <div className="pwa-update-content">
         <div className="pwa-update-icon-wrap" aria-hidden="true">
-          <Sparkles className="pwa-update-icon" />
+          <Image
+            src={getAssetPath("/pwa-192x192.png")}
+            alt="UpCoin"
+            width={38}
+            height={38}
+            className="pwa-update-app-icon"
+            priority
+          />
         </div>
         <div className="pwa-update-texts">
           <p className="pwa-update-title">Mise à jour disponible</p>

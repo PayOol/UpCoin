@@ -2450,18 +2450,21 @@ html[data-theme="dark"] .pwa-install-later:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, rgba(10, 216, 243, 0.2), rgba(118, 80, 239, 0.3));
-  border: 1px solid rgba(10, 216, 243, 0.3);
-  color: #0ad8f3;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  overflow: hidden;
+  border: 1px solid rgba(10, 216, 243, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 10px rgba(10, 216, 243, 0.2);
   flex-shrink: 0;
 }
 
-.pwa-update-icon {
-  width: 20px;
-  height: 20px;
+.pwa-update-app-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
 }
 
 .pwa-update-texts {
