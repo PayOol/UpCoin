@@ -419,8 +419,38 @@ export function toggleSound(): boolean {
   return next;
 }
 
+// --- MICRO-VIBRATIONS HAPTIQUES SYNCHRONISÉES ---
+
+const HAPTIC_PATTERNS: Record<SoundName, number | number[]> = {
+  tap: 12,
+  pop: 16,
+  toggleOn: [10, 25, 14],
+  toggleOff: [14, 25, 10],
+  stepUp: [12, 18, 16],
+  stepDown: [16, 18, 12],
+  modalOpen: 18,
+  modalClose: 14,
+  success: [20, 40, 22, 40, 25, 40, 35],
+  failure: [25, 85, 30, 80, 40],
+  error: [22, 40, 35],
+};
+
+function triggerHaptic(name: SoundName): void {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return;
+  try {
+    if ("vibrate" in navigator && typeof navigator.vibrate === "function") {
+      const pattern = HAPTIC_PATTERNS[name];
+      if (pattern !== undefined) {
+        navigator.vibrate(pattern);
+      }
+    }
+  } catch {
+    // Périphérique sans vibreur (ex: Desktop)
+  }
+}
+
 /**
- * Joue un son instantanément avec volume doux et normalisé
+ * Joue un son instantanément avec volume doux et micro-vibrations synchronisées
  */
 function playSound(name: SoundName, minIntervalMs = 15): void {
   if (!isSoundEnabled() || typeof window === "undefined") return;
@@ -429,6 +459,9 @@ function playSound(name: SoundName, minIntervalMs = 15): void {
   const lastTime = lastPlayTimes.get(name) ?? 0;
   if (now - lastTime < minIntervalMs) return;
   lastPlayTimes.set(name, now);
+
+  // Déclenchement de la micro-vibration haptique synchronisée
+  triggerHaptic(name);
 
   const ctx = getOrCreateAudioContext();
 
