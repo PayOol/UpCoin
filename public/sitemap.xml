@@ -2,12 +2,12 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://payool.github.io/UpCoin/</loc>
-    <lastmod>2026-08-14T00:00:00+00:00</lastmod>
+    <loc>https://upcoin.click/</loc>
+    <lastmod>2026-08-15T00:00:00+00:00</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="fr" href="https://payool.github.io/UpCoin/?lang=fr"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://payool.github.io/UpCoin/?lang=en"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://payool.github.io/UpCoin/"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://upcoin.click/?lang=fr"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://upcoin.click/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://upcoin.click/"/>
   </url>
 </urlset>
