@@ -133,6 +133,10 @@ const copy = {
     faqSecurityAns: "Vos identifiants sont strictement confidentiels et uniquement utilisés pour livrer votre recharge.",
     faqOrderIssue: "Commande en attente ou réclamation",
     faqOrderIssueAns: "Munissez-vous de votre référence de commande et contactez notre support sur WhatsApp.",
+    videoBannerTitle: "Besoin d'aide pour acheter vos pièces ?",
+    videoBannerSubtitle: "Regardez cette vidéo",
+    videoModalTitle: "Besoin d'aide pour acheter vos pièces ?",
+    watchVideo: "Regarder le tutoriel vidéo",
     rechargeTikTok: "Recharge TikTok",
     choosePack: "Choisissez votre pack",
     availablePacks: "Forfaits disponibles",
@@ -230,6 +234,10 @@ const copy = {
     faqSecurityAns: "Your credentials are kept strictly confidential and only used to deliver your order.",
     faqOrderIssue: "Pending order or issue",
     faqOrderIssueAns: "Keep your order reference ready and reach out to our WhatsApp support team.",
+    videoBannerTitle: "Need help buying your coins?",
+    videoBannerSubtitle: "Watch this video",
+    videoModalTitle: "Need help buying your coins?",
+    watchVideo: "Watch tutorial video",
     rechargeTikTok: "TikTok recharge",
     choosePack: "Choose your pack",
     availablePacks: "Available packs",
@@ -357,6 +365,7 @@ export default function Home() {
   const [sebpayState, setSebpayState] = useState<"form" | "processing" | "success" | "failed">("form");
   const [sideNavOpen, setSideNavOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<"packs" | "history">("packs");
   const paymentHistorySnapshot = useSyncExternalStore(
     subscribeToPaymentHistory,
@@ -555,23 +564,27 @@ export default function Home() {
   };
 
   useEffect(() => {
-    document.body.style.overflow = checkoutOpen || sideNavOpen || supportOpen ? "hidden" : "";
+    document.body.style.overflow = checkoutOpen || sideNavOpen || supportOpen || videoModalOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [checkoutOpen, sideNavOpen, supportOpen]);
+  }, [checkoutOpen, sideNavOpen, supportOpen, videoModalOpen]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         if (sideNavOpen) setSideNavOpen(false);
         if (supportOpen) setSupportOpen(false);
+        if (videoModalOpen) {
+          playModalClose();
+          setVideoModalOpen(false);
+        }
         if (checkoutOpen) closeCheckout();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [sideNavOpen, supportOpen, checkoutOpen]);
+  }, [sideNavOpen, supportOpen, videoModalOpen, checkoutOpen]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -813,9 +826,50 @@ export default function Home() {
       )}
 
       <section className="shop-shell" id="packs">
+        <div className="help-video-banner">
+          <div className="help-video-banner-left">
+            <div className="help-video-title-row">
+              <span className="help-video-dot" aria-hidden="true" />
+              <h2>{t.videoBannerTitle}</h2>
+            </div>
+            <p>{t.videoBannerSubtitle}</p>
+          </div>
+
+          <button
+            type="button"
+            className="help-video-trigger"
+            onClick={() => {
+              playModalOpen();
+              setVideoModalOpen(true);
+            }}
+            aria-label={t.watchVideo}
+          >
+            <img
+              src="https://img.youtube.com/vi/AZgaA8ufCzs/maxresdefault.jpg"
+              alt={t.videoBannerTitle}
+              className="help-video-thumbnail"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src =
+                  "https://img.youtube.com/vi/AZgaA8ufCzs/hqdefault.jpg";
+              }}
+            />
+            <div className="help-video-overlay" />
+            <div className="help-video-play-btn" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="help-video-play-icon"
+                width="18"
+                height="18"
+              >
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          </button>
+        </div>
+
         <div className="shop-titlebar">
           <div>
-            <span className="shop-kicker">{t.rechargeTikTok}</span>
             <h1>{t.choosePack}</h1>
           </div>
         </div>
@@ -1581,6 +1635,52 @@ export default function Home() {
               >
                 {t.close}
               </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {videoModalOpen && (
+        <div
+          className="video-modal-overlay"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              playModalClose();
+              setVideoModalOpen(false);
+            }
+          }}
+        >
+          <section
+            className="video-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="video-modal-title"
+          >
+            <div className="video-modal-header">
+              <h2 id="video-modal-title">{t.videoModalTitle}</h2>
+              <button
+                type="button"
+                className="close-video-modal"
+                onClick={() => {
+                  playModalClose();
+                  setVideoModalOpen(false);
+                }}
+                aria-label={t.close}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="video-modal-body">
+              <div className="video-player-frame">
+                <iframe
+                  src="https://www.youtube.com/embed/AZgaA8ufCzs?autoplay=1&rel=0"
+                  title={t.videoModalTitle}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              </div>
             </div>
           </section>
         </div>
