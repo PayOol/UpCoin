@@ -28,7 +28,7 @@ let masterGainNode: GainNode | null = null;
 const audioBuffers = new Map<SoundName, AudioBuffer>();
 const wavDataUris = new Map<SoundName, string>();
 let pendingAutoplaySound: SoundName | null = null;
-let lastPlayTimes = new Map<string, number>();
+const lastPlayTimes = new Map<string, number>();
 
 // --- NORMALISATION AUTOMATIQUE DU VOLUME DES SIGNAUX ---
 
@@ -499,7 +499,7 @@ function triggerHaptic(name: SoundName): void {
 /**
  * Joue un son instantanément avec volume doux et micro-vibrations synchronisées
  */
-function playSound(name: SoundName, minIntervalMs = 15): void {
+function playSound(name: SoundName, minIntervalMs = 15, playbackRate = 1): void {
   if (!isSoundEnabled() || typeof window === "undefined") return;
 
   const now = performance.now();
@@ -518,6 +518,9 @@ function playSound(name: SoundName, minIntervalMs = 15): void {
       if (buffer) {
         const source = ctx.createBufferSource();
         source.buffer = buffer;
+        if (playbackRate !== 1) {
+          source.playbackRate.value = playbackRate;
+        }
         if (masterGainNode) {
           source.connect(masterGainNode);
         } else {
@@ -535,6 +538,9 @@ function playSound(name: SoundName, minIntervalMs = 15): void {
   try {
     const audio = new Audio(getWavDataUri(name));
     audio.volume = MASTER_VOLUME;
+    if (playbackRate !== 1) {
+      audio.playbackRate = playbackRate;
+    }
     const playPromise = audio.play();
     if (playPromise) {
       playPromise.catch(() => {
@@ -557,7 +563,7 @@ export function playTap(): void {
 }
 
 export function playPop(pitchMultiplier = 1): void {
-  playSound("pop", 20);
+  playSound("pop", 20, pitchMultiplier);
 }
 
 export function playToggle(active = true): void {

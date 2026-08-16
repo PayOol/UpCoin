@@ -195,6 +195,8 @@ const copy = {
     recommended: "Recommandé",
     popularCountries: "Pays populaires",
     allCountries: "Tous les pays (A-Z)",
+    footerDisclaimer: "UpCoin est une plateforme indépendante de services tiers et n'est pas affiliée, associée ou sponsorisée par TikTok ou ByteDance.",
+    footerCopyright: `© ${new Date().getFullYear()} UpCoin. Tous droits réservés.`,
   },
   en: {
     mainMenu: "Main menu",
@@ -290,6 +292,8 @@ const copy = {
     recommended: "Recommended",
     popularCountries: "Popular countries",
     allCountries: "All countries (A-Z)",
+    footerDisclaimer: "UpCoin is an independent third-party service platform and is not affiliated with, associated with, or sponsored by TikTok or ByteDance.",
+    footerCopyright: `© ${new Date().getFullYear()} UpCoin. All rights reserved.`,
   },
 } as const;
 
@@ -1016,6 +1020,15 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      <footer className="store-footer">
+        <div className="store-footer-inner">
+          <p className="store-footer-disclaimer">{t.footerDisclaimer}</p>
+          <div className="store-footer-bottom">
+            <span>{t.footerCopyright}</span>
+          </div>
+        </div>
+      </footer>
 
       {checkoutOpen && (
         <div

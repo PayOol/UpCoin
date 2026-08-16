@@ -655,10 +655,11 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
           key={isSuccess ? "audio-success" : "audio-failure"}
           src={getSoundWavDataUri(isSuccess ? "success" : "failure")}
           autoPlay
-          playsInline
           aria-hidden="true"
           style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
-        />
+        >
+          <track kind="captions" />
+        </audio>
       )}
       <header className="payment-return-header">
         <Link className="payment-return-brand" href="/" aria-label={t.brandLabel}>

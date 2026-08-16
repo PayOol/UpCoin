@@ -24,6 +24,7 @@ const installPromptCaptureScript = `
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || "";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://upcoin.click";
+const pwaOgImageUrl = `${siteUrl}/pwa-512x512.png`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -107,9 +108,10 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: `${basePath}/og.png`,
-        width: 1200,
-        height: 630,
+        url: pwaOgImageUrl,
+        secureUrl: pwaOgImageUrl,
+        width: 512,
+        height: 512,
         alt: "UpCoin — Recharge Pièces TikTok avec Mobile Money",
         type: "image/png",
       },
@@ -120,7 +122,7 @@ export const metadata: Metadata = {
     title: "UpCoin — Recharge Pièces TikTok en FCFA (Mobile Money)",
     description:
       "Rechargez vos pièces TikTok instantanément avec Orange Money & MTN MoMo. Tarifs avantageux, livraison express et sécurisée.",
-    images: [`${basePath}/og.png`],
+    images: [pwaOgImageUrl],
     creator: "@UpCoin",
     site: "@UpCoin",
   },
@@ -205,7 +207,7 @@ const jsonLdGlobal = {
       "@type": "Product",
       "@id": `${siteUrl}/#product`,
       "name": "Recharge Pièces TikTok UpCoin",
-      "image": `${siteUrl}/og.png`,
+      "image": pwaOgImageUrl,
       "description":
         "Achetez vos pièces TikTok en FCFA avec Mobile Money (Orange Money, MTN MoMo, Moov, Wave) au meilleur tarif.",
       "brand": {
@@ -241,6 +243,15 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="fr">
       <head>
+        <meta property="og:image" content={pwaOgImageUrl} />
+        <meta property="og:image:secure_url" content={pwaOgImageUrl} />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="512" />
+        <meta property="og:image:height" content="512" />
+        <meta property="og:image:alt" content="UpCoin — Recharge Pièces TikTok avec Mobile Money" />
+        <meta name="twitter:image" content={pwaOgImageUrl} />
+        <meta name="twitter:image:src" content={pwaOgImageUrl} />
+        <meta name="twitter:image:alt" content="UpCoin — Recharge Pièces TikTok avec Mobile Money" />
         <script dangerouslySetInnerHTML={{ __html: installPromptCaptureScript }} />
         <script
           type="application/ld+json"
