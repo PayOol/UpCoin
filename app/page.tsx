@@ -361,7 +361,7 @@ export default function Home() {
   const [countryCode, setCountryCode] = useState("CM");
   const [dialCode, setDialCode] = useState("+237");
   const [paymentOrderId, setPaymentOrderId] = useState("");
-  const [paymentProvider, setPaymentProvider] = useState<PaymentProvider>("sebpay");
+  const [paymentProvider, setPaymentProvider] = useState<PaymentProvider>("soleaspay");
   const [sebpayState, setSebpayState] = useState<"form" | "processing" | "success" | "failed">("form");
   const [sideNavOpen, setSideNavOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
@@ -1402,33 +1402,6 @@ export default function Home() {
                   >
                     <button
                       type="button"
-                      className={`payment-provider-option${paymentProvider === "sebpay" ? " selected" : ""}`}
-                      role="radio"
-                      aria-checked={paymentProvider === "sebpay"}
-                      onClick={() => {
-                        playTap();
-                        if (!email.trim() || !EMAIL_PATTERN.test(email)) {
-                          setEmailError(true);
-                          emailInputRef.current?.focus();
-                        }
-                        setPaymentProvider("sebpay");
-                      }}
-                    >
-                      <span className="payment-provider-badge">{t.recommended}</span>
-                      <span className="payment-logo-wrap" aria-hidden="true">
-                        <Image
-                          src={getAssetPath("/sebpay-logo.png")}
-                          alt="SebPay"
-                          width={44}
-                          height={28}
-                          className="payment-logo-img"
-                        />
-                      </span>
-                      <strong className="payment-provider-name">SebPay</strong>
-                      <span className="payment-provider-radio" aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
                       className={`payment-provider-option${paymentProvider === "soleaspay" ? " selected" : ""}`}
                       role="radio"
                       aria-checked={paymentProvider === "soleaspay"}
@@ -1441,6 +1414,7 @@ export default function Home() {
                         setPaymentProvider("soleaspay");
                       }}
                     >
+                      <span className="payment-provider-badge">{t.recommended}</span>
                       <span className="payment-logo-wrap" aria-hidden="true">
                         <Image
                           src={getAssetPath("/soleaspay-logo.png")}
@@ -1451,6 +1425,32 @@ export default function Home() {
                         />
                       </span>
                       <strong className="payment-provider-name">SoleasPay</strong>
+                      <span className="payment-provider-radio" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className={`payment-provider-option${paymentProvider === "sebpay" ? " selected" : ""}`}
+                      role="radio"
+                      aria-checked={paymentProvider === "sebpay"}
+                      onClick={() => {
+                        playTap();
+                        if (!email.trim() || !EMAIL_PATTERN.test(email)) {
+                          setEmailError(true);
+                          emailInputRef.current?.focus();
+                        }
+                        setPaymentProvider("sebpay");
+                      }}
+                    >
+                      <span className="payment-logo-wrap" aria-hidden="true">
+                        <Image
+                          src={getAssetPath("/sebpay-logo.png")}
+                          alt="SebPay"
+                          width={44}
+                          height={28}
+                          className="payment-logo-img"
+                        />
+                      </span>
+                      <strong className="payment-provider-name">SebPay</strong>
                       <span className="payment-provider-radio" aria-hidden="true" />
                     </button>
                   </div>
