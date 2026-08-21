@@ -1,6 +1,6 @@
 export type PaymentOutcome = "success" | "failure";
 export type PaymentLanguage = "fr" | "en";
-export type PaymentProvider = "soleaspay" | "sebpay";
+export type PaymentProvider = "leekpay" | "soleaspay" | "sebpay";
 
 export const PAYMENT_PENDING_CHECKOUT_KEY = "upcoin-payment-checkout";
 export const PAYMENT_RETURN_SNAPSHOT_KEY = "upcoin-payment-return";

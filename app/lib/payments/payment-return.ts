@@ -73,9 +73,11 @@ export function parsePendingPaymentCheckout(rawValue: string | null): PendingPay
     const value: unknown = JSON.parse(rawValue);
     if (!isRecord(value)) return null;
 
-    const provider: PaymentProvider = value.provider === "sebpay"
-      ? "sebpay"
-      : "soleaspay";
+    const provider: PaymentProvider = value.provider === "leekpay"
+      ? "leekpay"
+      : value.provider === "sebpay"
+        ? "sebpay"
+        : "soleaspay";
 
     if (
       value.version !== 1 ||
@@ -138,6 +140,7 @@ export function parsePaymentReturn(rawValue: string | null): ParsedPaymentReturn
           "reference",
           "provider_reference",
           "providerReference",
+          "payment_id",
         ]),
         status,
         successful: readBoolean(sources, ["success", "successful"]),

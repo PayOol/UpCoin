@@ -59,6 +59,9 @@ const APP_SHELL = [
   \`\${basePath}/apple-touch-icon.png\`,
   \`\${basePath}/favicon.png\`,
   \`\${basePath}/logo.png\`,
+  \`\${basePath}/leekpay-logo.png\`,
+  \`\${basePath}/sebpay-logo.png\`,
+  \`\${basePath}/soleaspay-logo.png\`,
   \`\${basePath}/og.png\`,
 ];
 

@@ -60,9 +60,11 @@ function parseEntry(value: unknown): PaymentHistoryEntry | null {
     MAX_REFERENCE_LENGTH,
   );
   const providerStatus = cleanOptionalString(value.providerStatus, MAX_PROVIDER_STATUS_LENGTH);
-  const provider: PaymentProvider = value.provider === "sebpay"
-    ? "sebpay"
-    : "soleaspay";
+  const provider: PaymentProvider = value.provider === "leekpay"
+    ? "leekpay"
+    : value.provider === "sebpay"
+      ? "sebpay"
+      : "soleaspay";
   const status = value.status;
 
   if (

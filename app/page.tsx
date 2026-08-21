@@ -45,6 +45,7 @@ import {
   toggleSound,
 } from "@/app/lib/sound";
 import { SebPayCheckout } from "@/app/components/payments/SebPayCheckout";
+import { LeekPayCheckout } from "@/app/components/payments/LeekPayCheckout";
 import { SoleasPayCheckoutV3 } from "@/app/components/payments/SoleasPayCheckoutV3";
 import { getAssetPath } from "@/app/lib/asset-path";
 import { packs, type Pack } from "@/app/lib/catalog";
@@ -361,7 +362,7 @@ export default function Home() {
   const [countryCode, setCountryCode] = useState("CM");
   const [dialCode, setDialCode] = useState("+237");
   const [paymentOrderId, setPaymentOrderId] = useState("");
-  const [paymentProvider, setPaymentProvider] = useState<PaymentProvider>("soleaspay");
+  const [paymentProvider, setPaymentProvider] = useState<PaymentProvider>("leekpay");
   const [sebpayState, setSebpayState] = useState<"form" | "processing" | "success" | "failed">("form");
   const [sideNavOpen, setSideNavOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
@@ -1031,7 +1032,7 @@ export default function Home() {
                   </div>
                   <div className="order-method">
                     <span>{t.payment}</span>
-                    <strong>{order.provider === "sebpay" ? "SebPay" : "SoleasPay"}</strong>
+                    <strong>{order.provider === "leekpay" ? "LeekPay" : order.provider === "sebpay" ? "SebPay" : "SoleasPay"}</strong>
                   </div>
                   <div className="order-date">
                     <span>{t.date}</span>
@@ -1402,6 +1403,33 @@ export default function Home() {
                   >
                     <button
                       type="button"
+                      className={`payment-provider-option${paymentProvider === "leekpay" ? " selected" : ""}`}
+                      role="radio"
+                      aria-checked={paymentProvider === "leekpay"}
+                      onClick={() => {
+                        playTap();
+                        if (!email.trim() || !EMAIL_PATTERN.test(email)) {
+                          setEmailError(true);
+                          emailInputRef.current?.focus();
+                        }
+                        setPaymentProvider("leekpay");
+                      }}
+                    >
+                      <span className="payment-provider-badge">{t.recommended}</span>
+                      <span className="payment-logo-wrap" aria-hidden="true">
+                        <Image
+                          src={getAssetPath("/leekpay-logo.png")}
+                          alt="LeekPay"
+                          width={44}
+                          height={28}
+                          className="payment-logo-img"
+                        />
+                      </span>
+                      <strong className="payment-provider-name">LeekPay</strong>
+                      <span className="payment-provider-radio" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
                       className={`payment-provider-option${paymentProvider === "soleaspay" ? " selected" : ""}`}
                       role="radio"
                       aria-checked={paymentProvider === "soleaspay"}
@@ -1414,7 +1442,6 @@ export default function Home() {
                         setPaymentProvider("soleaspay");
                       }}
                     >
-                      <span className="payment-provider-badge">{t.recommended}</span>
                       <span className="payment-logo-wrap" aria-hidden="true">
                         <Image
                           src={getAssetPath("/soleaspay-logo.png")}
@@ -1455,6 +1482,30 @@ export default function Home() {
                     </button>
                   </div>
                 </div>
+
+                {paymentProvider === "leekpay" && paymentOrderId && (
+                  <LeekPayCheckout
+                    language={language}
+                    amount={selectedPack.price}
+                    orderId={paymentOrderId}
+                    description={
+                      language === "fr"
+                        ? `Achat de ${deliveredCoins} pièces TikTok pour ${username}`
+                        : `Purchase of ${deliveredCoins} TikTok coins for ${username}`
+                    }
+                    username={username}
+                    password={password}
+                    whatsapp={whatsapp}
+                    dialCode={dialCode}
+                    email={email}
+                    coins={deliveredCoins}
+                    isEmailValid={Boolean(email.trim() && EMAIL_PATTERN.test(email))}
+                    onRequireEmail={() => {
+                      setEmailError(true);
+                      emailInputRef.current?.focus();
+                    }}
+                  />
+                )}
 
                 {paymentProvider === "soleaspay" && paymentOrderId && (
                   <SoleasPayCheckoutV3
