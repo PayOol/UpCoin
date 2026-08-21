@@ -4,7 +4,14 @@ import type {
 } from "@/app/lib/payments/payment-contract";
 
 const MAX_CALLBACK_LENGTH = 100_000;
-const SUCCESS_STATUSES = new Set(["SUCCESS", "COMPLETED"]);
+const SUCCESS_STATUSES = new Set([
+  "SUCCESS",
+  "COMPLETED",
+  "PAID",
+  "APPROVED",
+  "ACCEPTED",
+  "CONFIRMED",
+]);
 const FAILURE_STATUSES = new Set([
   "FAILED",
   "FAILURE",

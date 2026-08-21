@@ -481,10 +481,9 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
         return;
       }
 
-      const isLeekPay = pendingCheckout.provider === "leekpay" || searchParams.get("provider") === "leekpay";
       const callbackConfirmsPayment = (parsedReturn.phase === "received" &&
         isConfirmedPayment(parsedReturn.data)) ||
-        (outcome === "success" && !callbackIsInvalid && isLeekPay);
+        (outcome === "success" && !callbackIsInvalid);
       const callbackRejectsPayment = isRejectedPayment(parsedReturn.data);
 
       if (outcome === "success" && !callbackIsInvalid && !callbackRejectsPayment && !callbackConfirmsPayment) {
