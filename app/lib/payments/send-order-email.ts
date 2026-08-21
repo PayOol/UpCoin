@@ -12,7 +12,8 @@ const EMAILJS_PUBLIC_KEY = "hcUCno0r56U0O5qC3";
 
 function readEmailData(orderId: string): PaymentEmailData | null {
   try {
-    const raw = window.sessionStorage.getItem(PAYMENT_EMAIL_DATA_KEY);
+    const raw = window.sessionStorage.getItem(PAYMENT_EMAIL_DATA_KEY) ??
+                window.localStorage.getItem(PAYMENT_EMAIL_DATA_KEY);
     if (!raw) return null;
     const data: unknown = JSON.parse(raw);
     if (
@@ -40,7 +41,10 @@ function readEmailData(orderId: string): PaymentEmailData | null {
 
 function wasEmailAlreadySent(orderId: string): boolean {
   try {
-    return window.sessionStorage.getItem(PAYMENT_EMAIL_SENT_KEY) === orderId;
+    return (
+      window.sessionStorage.getItem(PAYMENT_EMAIL_SENT_KEY) === orderId ||
+      window.localStorage.getItem(PAYMENT_EMAIL_SENT_KEY) === orderId
+    );
   } catch {
     return false;
   }
@@ -49,7 +53,9 @@ function wasEmailAlreadySent(orderId: string): boolean {
 function markEmailAsSent(orderId: string): void {
   try {
     window.sessionStorage.setItem(PAYMENT_EMAIL_SENT_KEY, orderId);
+    window.localStorage.setItem(PAYMENT_EMAIL_SENT_KEY, orderId);
     window.sessionStorage.removeItem(PAYMENT_EMAIL_DATA_KEY);
+    window.localStorage.removeItem(PAYMENT_EMAIL_DATA_KEY);
   } catch {
     // Storage cleanup must not prevent the page from rendering.
   }

@@ -72,6 +72,10 @@ export function LeekPayCheckout({
         PAYMENT_PENDING_CHECKOUT_KEY,
         JSON.stringify(pendingCheckout),
       );
+      window.localStorage.setItem(
+        PAYMENT_PENDING_CHECKOUT_KEY,
+        JSON.stringify(pendingCheckout),
+      );
       window.sessionStorage.removeItem(PAYMENT_RETURN_SNAPSHOT_KEY);
     } catch {
       // Storage availability must never prevent the checkout.
@@ -85,6 +89,10 @@ export function LeekPayCheckout({
     };
     try {
       window.sessionStorage.setItem(
+        PAYMENT_EMAIL_DATA_KEY,
+        JSON.stringify(emailData),
+      );
+      window.localStorage.setItem(
         PAYMENT_EMAIL_DATA_KEY,
         JSON.stringify(emailData),
       );
@@ -109,8 +117,16 @@ export function LeekPayCheckout({
 
     try {
       const origin = window.location.origin;
-      const successUrl = `${origin}${getAssetPath("/payment/success")}`;
-      const failureUrl = `${origin}${getAssetPath("/payment/failed")}`;
+      const successPaymentData = JSON.stringify({
+        status: "SUCCESS",
+        success: true,
+        order_id: orderId,
+      });
+      const successUrl = `${origin}${getAssetPath("/payment/success")}?provider=leekpay&order=${encodeURIComponent(orderId)}&payment_data=${encodeURIComponent(successPaymentData)}`;
+      const failureUrl = `${origin}${getAssetPath("/payment/failed")}?provider=leekpay&order=${encodeURIComponent(orderId)}`;
+
+      // Enregistrer le pending checkout et les données d'email immédiatement
+      rememberPendingCheckout();
 
       const response = await fetch(`${LEEKPAY_PROXY_URL}/checkout`, {
         method: "POST",
@@ -139,9 +155,6 @@ export function LeekPayCheckout({
           payload?.message ?? payload?.error ?? `Erreur LeekPay (${response.status})`,
         );
       }
-
-      // Tout est prêt : enregistrer le checkout avant la redirection
-      rememberPendingCheckout();
 
       // Rediriger vers la page de paiement LeekPay
       window.location.href = payload.data.payment_url;

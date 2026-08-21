@@ -219,7 +219,8 @@ function readPendingCheckout(): PendingPaymentCheckout | null {
 
   for (const key of keys) {
     try {
-      const pendingCheckout = parsePendingPaymentCheckout(window.sessionStorage.getItem(key));
+      const raw = window.sessionStorage.getItem(key) ?? window.localStorage.getItem(key);
+      const pendingCheckout = parsePendingPaymentCheckout(raw);
       if (pendingCheckout) return pendingCheckout;
     } catch {
       return null;
@@ -232,8 +233,10 @@ function readPendingCheckout(): PendingPaymentCheckout | null {
 function removePendingCheckouts(): void {
   try {
     window.sessionStorage.removeItem(PAYMENT_PENDING_CHECKOUT_KEY);
+    window.localStorage.removeItem(PAYMENT_PENDING_CHECKOUT_KEY);
     for (const key of LEGACY_PAYMENT_PENDING_CHECKOUT_KEYS) {
       window.sessionStorage.removeItem(key);
+      window.localStorage.removeItem(key);
     }
   } catch {
     // Storage cleanup must not prevent the page from rendering.
@@ -422,8 +425,8 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
       ? findPaymentHistoryEntry(requestedOrderId)
       : null;
     const isLiveReturn = pendingCheckout !== null &&
-      (rawPaymentData !== null || !requestedOrderId) &&
-      (!requestedOrderId || requestedOrderId === pendingCheckout.orderId);
+      (!requestedOrderId || requestedOrderId === pendingCheckout.orderId) &&
+      (requestedEntry === null || requestedEntry.status === "pending" || rawPaymentData !== null);
 
     const commitState = (nextState: ReturnState) => {
       window.queueMicrotask(() => setReturnState(nextState));
@@ -478,8 +481,10 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
         return;
       }
 
-      const callbackConfirmsPayment = parsedReturn.phase === "received" &&
-        isConfirmedPayment(parsedReturn.data);
+      const isLeekPay = pendingCheckout.provider === "leekpay" || searchParams.get("provider") === "leekpay";
+      const callbackConfirmsPayment = (parsedReturn.phase === "received" &&
+        isConfirmedPayment(parsedReturn.data)) ||
+        (outcome === "success" && !callbackIsInvalid && isLeekPay);
       const callbackRejectsPayment = isRejectedPayment(parsedReturn.data);
 
       if (outcome === "success" && !callbackIsInvalid && !callbackRejectsPayment && !callbackConfirmsPayment) {
@@ -501,9 +506,17 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
       const confirmed = resolvedOutcome === "success" &&
         !callbackIsInvalid &&
         callbackConfirmsPayment;
+      const transactionReference = (callbackIsInvalid ? null : parsedReturn.data?.reference) ??
+        searchParams.get("transaction_id") ??
+        searchParams.get("payment_id") ??
+        searchParams.get("checkout_id") ??
+        null;
+      const providerStatus = (callbackIsInvalid ? null : parsedReturn.data?.status) ??
+        (resolvedOutcome === "success" ? "SUCCESS" : "FAILED");
+
       const finalizedEntry = finalizePaymentHistory(pendingCheckout, resolvedOutcome, {
-        transactionReference: callbackIsInvalid ? null : parsedReturn.data?.reference,
-        providerStatus: callbackIsInvalid ? null : parsedReturn.data?.status,
+        transactionReference,
+        providerStatus,
         confirmed,
       });
       const finalizedOutcome = finalizedEntry.status === "pending"
