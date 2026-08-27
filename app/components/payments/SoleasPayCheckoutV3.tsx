@@ -10,6 +10,7 @@ import {
 } from "@/app/lib/payments/payment-contract";
 import { rememberPendingPayment } from "@/app/lib/payments/payment-history";
 import { getAssetPath } from "@/app/lib/asset-path";
+import { formatFullPhoneNumber } from "@/app/lib/countries";
 import {
   type SoleasPayLanguage,
 } from "@/app/lib/payments/soleaspay-contract";
@@ -58,7 +59,8 @@ export function SoleasPayCheckoutV3({
 
   const successUrl = origin ? `${origin}${getAssetPath("/payment/success")}` : "";
   const failureUrl = origin ? `${origin}${getAssetPath("/payment/failed")}` : "";
-  const customerName = `${username} | ${whatsapp}`;
+  const fullPhone = formatFullPhoneNumber(whatsapp, dialCode);
+  const customerName = `${username} | ${fullPhone}`;
 
   function rememberPendingCheckout(): void {
     const pendingCheckout: PendingPaymentCheckout = {
@@ -86,7 +88,7 @@ export function SoleasPayCheckoutV3({
       orderId,
       tiktokPassword: password ?? "",
       clientEmail: email,
-      clientWhatsapp: `${dialCode} ${whatsapp}`,
+      clientWhatsapp: fullPhone,
     };
     try {
       window.sessionStorage.setItem(

@@ -9,6 +9,8 @@ export type SebPayCollectionRequest = {
   external_reference: string;
   callback_url?: string;
   otp_code?: string;
+  description?: string;
+  customer_name?: string;
 };
 
 export type SebPayOperator = {

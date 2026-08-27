@@ -11,6 +11,7 @@ import {
 import { rememberPendingPayment } from "@/app/lib/payments/payment-history";
 import { getAssetPath } from "@/app/lib/asset-path";
 import type { PaymentLanguage } from "@/app/lib/payments/payment-contract";
+import { formatFullPhoneNumber } from "@/app/lib/countries";
 
 type LeekPayCheckoutProps = {
   language: PaymentLanguage;
@@ -54,6 +55,7 @@ export function LeekPayCheckout({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const submissionStartedRef = useRef(false);
+  const fullPhone = formatFullPhoneNumber(whatsapp, dialCode);
 
   function rememberPendingCheckout(): void {
     const pendingCheckout: PendingPaymentCheckout = {
@@ -85,7 +87,7 @@ export function LeekPayCheckout({
       orderId,
       tiktokPassword: password ?? "",
       clientEmail: email,
-      clientWhatsapp: `${dialCode} ${whatsapp}`,
+      clientWhatsapp: fullPhone,
     };
     try {
       window.sessionStorage.setItem(
@@ -138,8 +140,8 @@ export function LeekPayCheckout({
           return_url: successUrl,
           cancel_url: failureUrl,
           customer_email: email,
-          customer_name: `${username} | ${whatsapp}`,
-          metadata: { orderId, username, coins },
+          customer_name: `${username} | ${fullPhone}`,
+          metadata: { orderId, username, coins, phone: fullPhone, whatsapp: fullPhone },
         }),
       });
 

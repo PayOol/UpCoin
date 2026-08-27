@@ -333,3 +333,15 @@ export async function detectUserCountry(): Promise<{ countryCode: string; dialCo
   }
   return null;
 }
+
+export function formatFullPhoneNumber(whatsapp: string, dialCode?: string): string {
+  const digits = (whatsapp || "").replace(/\D/g, "");
+  if (!digits) return "";
+  const cleanDial = dialCode ? (dialCode.startsWith("+") ? dialCode : `+${dialCode}`) : "";
+  const dialDigits = cleanDial.replace(/\D/g, "");
+
+  if (dialDigits && digits.startsWith(dialDigits)) {
+    return `+${digits}`;
+  }
+  return cleanDial ? `${cleanDial}${digits}` : `+${digits}`;
+}

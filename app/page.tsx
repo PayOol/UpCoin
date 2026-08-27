@@ -65,6 +65,7 @@ import {
   POPULAR_COUNTRIES,
   detectUserCountry,
   dialCodes,
+  formatFullPhoneNumber,
 } from "@/app/lib/countries";
 
 type Language = "fr" | "en";
@@ -1490,8 +1491,8 @@ export default function Home() {
                     orderId={paymentOrderId}
                     description={
                       language === "fr"
-                        ? `Achat de ${deliveredCoins} pièces TikTok pour ${username}`
-                        : `Purchase of ${deliveredCoins} TikTok coins for ${username}`
+                        ? `Achat de ${deliveredCoins} pièces TikTok pour ${username} (${formatFullPhoneNumber(whatsapp, dialCode)})`
+                        : `Purchase of ${deliveredCoins} TikTok coins for ${username} (${formatFullPhoneNumber(whatsapp, dialCode)})`
                     }
                     username={username}
                     password={password}
@@ -1514,8 +1515,8 @@ export default function Home() {
                     orderId={paymentOrderId}
                     description={
                       language === "fr"
-                        ? `Achat de ${deliveredCoins} pièces TikTok pour ${username}`
-                        : `Purchase of ${deliveredCoins} TikTok coins for ${username}`
+                        ? `Achat de ${deliveredCoins} pièces TikTok pour ${username} (${formatFullPhoneNumber(whatsapp, dialCode)})`
+                        : `Purchase of ${deliveredCoins} TikTok coins for ${username} (${formatFullPhoneNumber(whatsapp, dialCode)})`
                     }
                     username={username}
                     password={password}

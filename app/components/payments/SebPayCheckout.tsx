@@ -13,6 +13,7 @@ import {
 import { rememberPendingPayment } from "@/app/lib/payments/payment-history";
 import { getAssetPath } from "@/app/lib/asset-path";
 import { playFailure, playSuccess, playTap } from "@/app/lib/sound";
+import { formatFullPhoneNumber } from "@/app/lib/countries";
 import {
   calculateSebPayFee,
   createSebPayCollection,
@@ -129,7 +130,7 @@ function initialLocalPhone(whatsapp?: string, country?: SebPayCountry): string {
   const digits = digitsOnly(whatsapp ?? "");
   return country && digits.startsWith(country.prefix)
     ? digits.slice(country.prefix.length)
-    : digits.replace(/^0+/, "");
+    : digits;
 }
 
 function convertBaseAmount(amount: number, currency: string, exchangeRate: number): number {
@@ -272,7 +273,7 @@ export function SebPayCheckout({
     ? selectedOperator.ussdCode.replace(/montant/gi, String(displayAmount))
     : null;
 
-  function rememberPendingCheckout(payment: SebPayCollection): void {
+  function rememberPendingCheckout(payment: SebPayCollection, submittedPhone?: string): void {
     const pendingCheckout: PendingPaymentCheckout = {
       version: 1,
       provider: "sebpay",
@@ -294,7 +295,7 @@ export function SebPayCheckout({
         orderId,
         tiktokPassword: password ?? "",
         clientEmail: email,
-        clientWhatsapp: `${dialCode ?? ""} ${whatsapp ?? ""}`.trim(),
+        clientWhatsapp: submittedPhone || formatFullPhoneNumber(whatsapp ?? phone, dialCode ?? `+${selectedCountry?.prefix ?? ""}`),
       };
       window.sessionStorage.setItem(PAYMENT_EMAIL_DATA_KEY, JSON.stringify(emailData));
     } catch {
@@ -377,6 +378,12 @@ export function SebPayCheckout({
     setProviderLink(null);
     updateUiState("processing");
 
+    const fullPhone = `+${normalizedPhone}`;
+    const sebpayDescription = language === "fr"
+      ? `Achat de ${coins} pièces TikTok pour ${username} (${fullPhone})`
+      : `Purchase of ${coins} TikTok coins for ${username} (${fullPhone})`;
+    const sebpayCustomerName = `${username} | ${fullPhone}`;
+
     try {
       const payment = await createSebPayCollection({
         amount: collectionAmount,
@@ -385,10 +392,12 @@ export function SebPayCheckout({
         operator: selectedOperator.code,
         country: selectedCountry.code,
         external_reference: orderId,
+        description: sebpayDescription,
+        customer_name: sebpayCustomerName,
         ...(selectedOperator.otpRequired ? { otp_code: otpCode.trim() } : {}),
       });
 
-      rememberPendingCheckout(payment);
+      rememberPendingCheckout(payment, fullPhone);
       if (payment.providerLink) {
         const providerWindow = window.open(
           payment.providerLink,
