@@ -1,5 +1,6 @@
 import { getAssetPath } from "@/app/lib/asset-path";
 import type { PaymentLanguage } from "@/app/lib/payments/payment-contract";
+import { SUPPORT_WHATSAPP_CONTACTS } from "@/app/lib/support-whatsapp";
 
 export type PaymentReceiptData = {
   language: PaymentLanguage;
@@ -236,7 +237,16 @@ export async function generatePaymentReceipt(data: PaymentReceiptData): Promise<
   document.setTextColor(...COLORS.muted);
   document.setFontSize(8);
   document.text("UpCoin", 16, 274);
-  document.text("WhatsApp : +237 690 928 237", 105, 274, { align: "center" });
+  document.setFontSize(7.2);
+  SUPPORT_WHATSAPP_CONTACTS.forEach((contact, index) => {
+    document.text(
+      `${contact.label[data.language]} : ${contact.displayPhone}`,
+      105,
+      271.5 + index * 4.2,
+      { align: "center" },
+    );
+  });
+  document.setFontSize(8);
   document.text(
     isFrench ? "Généré électroniquement" : "Electronically generated",
     194,

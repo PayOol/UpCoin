@@ -11,7 +11,6 @@ import {
   ChevronRight,
   Clock3,
   Coins,
-  ExternalLink,
   Eye,
   EyeOff,
   Globe,
@@ -47,8 +46,10 @@ import {
 import { SebPayCheckout } from "@/app/components/payments/SebPayCheckout";
 import { LeekPayCheckout } from "@/app/components/payments/LeekPayCheckout";
 import { SoleasPayCheckoutV3 } from "@/app/components/payments/SoleasPayCheckoutV3";
+import { WhatsAppContactPicker } from "@/app/components/support/WhatsAppContactPicker";
 import { getAssetPath } from "@/app/lib/asset-path";
 import { packs, type Pack } from "@/app/lib/catalog";
+import { SUPPORT_WHATSAPP_CONTACTS } from "@/app/lib/support-whatsapp";
 import type { PaymentProvider } from "@/app/lib/payments/payment-contract";
 import {
   finalizePaymentHistory,
@@ -1635,20 +1636,26 @@ export default function Home() {
                   </div>
                   <div>
                     <strong>{t.whatsappSupportTitle}</strong>
-                    <span>+237 690 928 237 · {t.onlineSupport}</span>
+                    <span>
+                      {SUPPORT_WHATSAPP_CONTACTS.map((contact) => contact.displayPhone).join(" · ")}
+                      {" · "}{t.onlineSupport}
+                    </span>
                   </div>
                 </div>
-                <a
-                  href="https://wa.me/237690928237?text=Bonjour%20UpCoin%2C%20j%27ai%20besoin%20d%27assistance%20concernant%20mes%20pi%C3%A8ces%20TikTok."
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <WhatsAppContactPicker
+                  language={language}
+                  message={
+                    language === "fr"
+                      ? "Bonjour UpCoin, j'ai besoin d'assistance concernant mes pièces TikTok."
+                      : "Hello UpCoin, I need help with my TikTok coins."
+                  }
                   className="support-whatsapp-button"
-                  aria-label={t.contactWhatsapp}
+                  ariaLabel={t.contactWhatsapp}
                 >
                   <FaWhatsapp size={18} />
                   <span>{t.contactWhatsappBtn}</span>
-                  <ExternalLink size={14} />
-                </a>
+                  <ChevronRight size={14} />
+                </WhatsAppContactPicker>
               </div>
 
               <div className="support-faq-section">
@@ -1738,18 +1745,16 @@ export default function Home() {
         </div>
       )}
 
-      <a
+      <WhatsAppContactPicker
+        language={language}
         className="whatsapp-float"
-        href="https://wa.me/237690928237"
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => playTap()}
-        aria-label={t.contactWhatsapp}
+        onOpen={() => playTap()}
+        ariaLabel={t.contactWhatsapp}
         title={t.contactWhatsapp}
       >
         <FaWhatsapp className="whatsapp-brand-icon" aria-hidden="true" />
         <span>WhatsApp</span>
-      </a>
+      </WhatsAppContactPicker>
     </main>
   );
 }

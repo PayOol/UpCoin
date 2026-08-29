@@ -2,6 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { PwaInstallPrompt } from "@/app/components/pwa/PwaInstallPrompt";
 import { PwaServiceWorker } from "@/app/components/pwa/PwaServiceWorker";
+import {
+  buildSupportWhatsAppHref,
+  SUPPORT_WHATSAPP_CONTACTS,
+} from "@/app/lib/support-whatsapp";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -161,16 +165,17 @@ const jsonLdGlobal = {
       },
       "description":
         "Service leader de recharge de pièces TikTok en Afrique via Mobile Money (Orange Money, MTN MoMo, Moov, Wave).",
-      "contactPoint": [
-        {
+      "contactPoint": SUPPORT_WHATSAPP_CONTACTS.map((contact) => ({
           "@type": "ContactPoint",
-          "telephone": "+237690928237",
+          "name": contact.label.fr,
+          "telephone": contact.phoneNumber,
           "contactType": "customer service",
           "availableLanguage": ["French", "English"],
           "areaServed": ["CM", "CI", "SN", "BF", "ML", "TG", "BJ", "GA", "CG", "CD", "XAF", "XOF"],
-        },
-      ],
-      "sameAs": ["https://wa.me/237690928237"],
+        })),
+      "sameAs": SUPPORT_WHATSAPP_CONTACTS.map((contact) =>
+        buildSupportWhatsAppHref(contact.whatsappNumber)
+      ),
     },
     {
       "@type": "WebSite",
@@ -266,4 +271,3 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     </html>
   );
 }
-

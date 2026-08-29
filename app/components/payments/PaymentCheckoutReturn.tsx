@@ -65,6 +65,7 @@ import {
   safeReceiptFilename,
 } from "@/app/lib/payments/payment-receipt";
 import { sendOrderEmail } from "@/app/lib/payments/send-order-email";
+import { WhatsAppContactPicker } from "@/app/components/support/WhatsAppContactPicker";
 
 type Theme = "light" | "dark";
 type ReturnPhase = "loading" | "received" | "missing" | "invalid";
@@ -735,13 +736,13 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
                 {!isLoading && isSuccess && hasOrder && (
                   <p className="payment-return-delivery-message">
                     {t.deliveryMessage}{" "}
-                    <a
-                      href="https://wa.me/237690928237"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <WhatsAppContactPicker
+                      language={language}
+                      className="payment-return-whatsapp-link"
+                      ariaLabel={t.contactWhatsapp}
                     >
                       {t.whatsapp}
-                    </a>.
+                    </WhatsAppContactPicker>.
                   </p>
                 )}
               </div>
@@ -827,22 +828,24 @@ export function PaymentCheckoutReturn({ outcome }: PaymentCheckoutReturnProps) {
       <footer className="payment-return-footer">
         <span><ShieldCheck size={15} /> {t.secure}</span>
         <span><CheckCircle2 size={15} /> {t.dataProtected}</span>
-        <a href="https://wa.me/237690928237" target="_blank" rel="noopener noreferrer">
+        <WhatsAppContactPicker
+          language={language}
+          className="payment-return-footer-whatsapp"
+          ariaLabel={t.contactWhatsapp}
+        >
           <Headphones size={15} /> {t.fastSupport}
-        </a>
+        </WhatsAppContactPicker>
       </footer>
 
-      <a
+      <WhatsAppContactPicker
+        language={language}
         className="whatsapp-float"
-        href="https://wa.me/237690928237"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={t.contactWhatsapp}
+        ariaLabel={t.contactWhatsapp}
         title={t.contactWhatsapp}
       >
         <FaWhatsapp className="whatsapp-brand-icon" aria-hidden="true" />
         <span>WhatsApp</span>
-      </a>
+      </WhatsAppContactPicker>
     </main>
   );
 }
