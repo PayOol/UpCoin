@@ -27,7 +27,7 @@ const installPromptCaptureScript = `
 `;
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || "";
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://upcoin.click";
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://upcoin.click").replace(/\/+$/, "");
 const pwaOgImageUrl = `${siteUrl}/pwa-512x512.png`;
 
 export const metadata: Metadata = {
@@ -68,11 +68,6 @@ export const metadata: Metadata = {
   manifest: `${basePath}/manifest.webmanifest`,
   alternates: {
     canonical: `${siteUrl}/`,
-    languages: {
-      "fr-FR": `${siteUrl}/?lang=fr`,
-      "en-US": `${siteUrl}/?lang=en`,
-      "x-default": `${siteUrl}/`,
-    },
   },
   appleWebApp: {
     capable: true,
@@ -108,7 +103,6 @@ export const metadata: Metadata = {
     url: `${siteUrl}/`,
     siteName: "UpCoin",
     locale: "fr_FR",
-    alternateLocale: ["en_US"],
     type: "website",
     images: [
       {

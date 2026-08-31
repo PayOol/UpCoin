@@ -4,6 +4,7 @@ import { PaymentCheckoutReturn } from "@/app/components/payments/PaymentCheckout
 export const metadata: Metadata = {
   title: "Paiement Réussi | UpCoin",
   description: "Confirmation et reçu de paiement UpCoin.",
+  alternates: null,
   robots: {
     index: false,
     follow: false,
@@ -14,4 +15,3 @@ export const metadata: Metadata = {
 export default function PaymentSuccessPage() {
   return <PaymentCheckoutReturn outcome="success" />;
 }
-

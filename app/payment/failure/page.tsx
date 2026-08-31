@@ -4,6 +4,7 @@ import { PaymentCheckoutReturn } from "@/app/components/payments/PaymentCheckout
 export const metadata: Metadata = {
   title: "Paiement Non Abouti | UpCoin",
   description: "Statut d'échec de transaction UpCoin.",
+  alternates: null,
   robots: {
     index: false,
     follow: false,
@@ -14,4 +15,3 @@ export const metadata: Metadata = {
 export default function PaymentFailurePage() {
   return <PaymentCheckoutReturn outcome="failure" />;
 }
-
