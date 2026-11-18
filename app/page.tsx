@@ -1422,7 +1422,9 @@ export default function Home() {
                         setPaymentProvider("leekpay");
                       }}
                     >
-                      <span className="payment-provider-badge">{t.recommended}</span>
+                      {DEFAULT_PAYMENT_PROVIDER === "leekpay" && (
+                        <span className="payment-provider-badge">{t.recommended}</span>
+                      )}
                       <span className="payment-logo-wrap" aria-hidden="true">
                         <Image
                           src={getAssetPath("/leekpay-logo.png")}
@@ -1433,6 +1435,37 @@ export default function Home() {
                         />
                       </span>
                       <strong className="payment-provider-name">LeekPay</strong>
+                      <span className="payment-provider-radio" aria-hidden="true" />
+                    </button>
+                    )}
+                    {isPaymentProviderEnabled("sebpay") && (
+                    <button
+                      type="button"
+                      className={`payment-provider-option${paymentProvider === "sebpay" ? " selected" : ""}`}
+                      role="radio"
+                      aria-checked={paymentProvider === "sebpay"}
+                      onClick={() => {
+                        playTap();
+                        if (!email.trim() || !EMAIL_PATTERN.test(email)) {
+                          setEmailError(true);
+                          emailInputRef.current?.focus();
+                        }
+                        setPaymentProvider("sebpay");
+                      }}
+                    >
+                      {DEFAULT_PAYMENT_PROVIDER === "sebpay" && (
+                        <span className="payment-provider-badge">{t.recommended}</span>
+                      )}
+                      <span className="payment-logo-wrap" aria-hidden="true">
+                        <Image
+                          src={getAssetPath("/sebpay-logo.png")}
+                          alt="SebPay"
+                          width={44}
+                          height={28}
+                          className="payment-logo-img"
+                        />
+                      </span>
+                      <strong className="payment-provider-name">SebPay</strong>
                       <span className="payment-provider-radio" aria-hidden="true" />
                     </button>
                     )}
@@ -1464,34 +1497,6 @@ export default function Home() {
                         />
                       </span>
                       <strong className="payment-provider-name">SoleasPay</strong>
-                      <span className="payment-provider-radio" aria-hidden="true" />
-                    </button>
-                    )}
-                    {isPaymentProviderEnabled("sebpay") && (
-                    <button
-                      type="button"
-                      className={`payment-provider-option${paymentProvider === "sebpay" ? " selected" : ""}`}
-                      role="radio"
-                      aria-checked={paymentProvider === "sebpay"}
-                      onClick={() => {
-                        playTap();
-                        if (!email.trim() || !EMAIL_PATTERN.test(email)) {
-                          setEmailError(true);
-                          emailInputRef.current?.focus();
-                        }
-                        setPaymentProvider("sebpay");
-                      }}
-                    >
-                      <span className="payment-logo-wrap" aria-hidden="true">
-                        <Image
-                          src={getAssetPath("/sebpay-logo.png")}
-                          alt="SebPay"
-                          width={44}
-                          height={28}
-                          className="payment-logo-img"
-                        />
-                      </span>
-                      <strong className="payment-provider-name">SebPay</strong>
                       <span className="payment-provider-radio" aria-hidden="true" />
                     </button>
                     )}
