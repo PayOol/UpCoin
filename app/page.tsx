@@ -50,7 +50,11 @@ import { WhatsAppContactPicker } from "@/app/components/support/WhatsAppContactP
 import { getAssetPath } from "@/app/lib/asset-path";
 import { packs, type Pack } from "@/app/lib/catalog";
 import { SUPPORT_WHATSAPP_CONTACTS } from "@/app/lib/support-whatsapp";
-import type { PaymentProvider } from "@/app/lib/payments/payment-contract";
+import {
+  DEFAULT_PAYMENT_PROVIDER,
+  isPaymentProviderEnabled,
+  type PaymentProvider,
+} from "@/app/lib/payments/payment-contract";
 import {
   finalizePaymentHistory,
   getPaymentHistoryServerSnapshot,
@@ -364,7 +368,7 @@ export default function Home() {
   const [countryCode, setCountryCode] = useState("CM");
   const [dialCode, setDialCode] = useState("+237");
   const [paymentOrderId, setPaymentOrderId] = useState("");
-  const [paymentProvider, setPaymentProvider] = useState<PaymentProvider>("leekpay");
+  const [paymentProvider, setPaymentProvider] = useState<PaymentProvider>(DEFAULT_PAYMENT_PROVIDER);
   const [sebpayState, setSebpayState] = useState<"form" | "processing" | "success" | "failed">("form");
   const [sideNavOpen, setSideNavOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
@@ -1403,6 +1407,7 @@ export default function Home() {
                     role="radiogroup"
                     aria-label={t.chooseProvider}
                   >
+                    {isPaymentProviderEnabled("leekpay") && (
                     <button
                       type="button"
                       className={`payment-provider-option${paymentProvider === "leekpay" ? " selected" : ""}`}
@@ -1430,6 +1435,8 @@ export default function Home() {
                       <strong className="payment-provider-name">LeekPay</strong>
                       <span className="payment-provider-radio" aria-hidden="true" />
                     </button>
+                    )}
+                    {isPaymentProviderEnabled("soleaspay") && (
                     <button
                       type="button"
                       className={`payment-provider-option${paymentProvider === "soleaspay" ? " selected" : ""}`}
@@ -1444,6 +1451,9 @@ export default function Home() {
                         setPaymentProvider("soleaspay");
                       }}
                     >
+                      {DEFAULT_PAYMENT_PROVIDER === "soleaspay" && (
+                        <span className="payment-provider-badge">{t.recommended}</span>
+                      )}
                       <span className="payment-logo-wrap" aria-hidden="true">
                         <Image
                           src={getAssetPath("/soleaspay-logo.png")}
@@ -1456,6 +1466,8 @@ export default function Home() {
                       <strong className="payment-provider-name">SoleasPay</strong>
                       <span className="payment-provider-radio" aria-hidden="true" />
                     </button>
+                    )}
+                    {isPaymentProviderEnabled("sebpay") && (
                     <button
                       type="button"
                       className={`payment-provider-option${paymentProvider === "sebpay" ? " selected" : ""}`}
@@ -1482,10 +1494,11 @@ export default function Home() {
                       <strong className="payment-provider-name">SebPay</strong>
                       <span className="payment-provider-radio" aria-hidden="true" />
                     </button>
+                    )}
                   </div>
                 </div>
 
-                {paymentProvider === "leekpay" && paymentOrderId && (
+                {paymentProvider === "leekpay" && isPaymentProviderEnabled("leekpay") && paymentOrderId && (
                   <LeekPayCheckout
                     language={language}
                     amount={selectedPack.price}

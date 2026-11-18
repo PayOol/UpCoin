@@ -2,6 +2,24 @@ export type PaymentOutcome = "success" | "failure";
 export type PaymentLanguage = "fr" | "en";
 export type PaymentProvider = "leekpay" | "soleaspay" | "sebpay";
 
+/**
+ * Activation des moyens de paiement.
+ * Pour réactiver un fournisseur, repasser sa valeur à `true`.
+ * (LeekPay désactivé temporairement — le code et le worker sont conservés.)
+ */
+export const PAYMENT_PROVIDERS_ENABLED: Record<PaymentProvider, boolean> = {
+  leekpay: false,
+  soleaspay: true,
+  sebpay: true,
+};
+
+export const isPaymentProviderEnabled = (provider: PaymentProvider) =>
+  PAYMENT_PROVIDERS_ENABLED[provider];
+
+/** Fournisseur sélectionné par défaut : le premier activé (ordre d'affichage). */
+export const DEFAULT_PAYMENT_PROVIDER: PaymentProvider =
+  (["leekpay", "soleaspay", "sebpay"] as const).find(isPaymentProviderEnabled) ?? "soleaspay";
+
 export const PAYMENT_PENDING_CHECKOUT_KEY = "upcoin-payment-checkout";
 export const PAYMENT_RETURN_SNAPSHOT_KEY = "upcoin-payment-return";
 
